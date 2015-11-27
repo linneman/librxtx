@@ -35,6 +35,7 @@ This is just a quick test to see if the stuff is working.
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <linux/parport.h>
 
 int main(int argc, char **args)
 {
@@ -44,7 +45,7 @@ int main(int argc, char **args)
 	int epp=IEEE1284_MODE_EPP;
 	int ecp=IEEE1284_MODE_ECP;
 
-	
+
 	int fd=open("/dev/lp0",O_NONBLOCK);
 	if(!ioctl(fd,PPCLAIM))
 		printf("PPCLAIM Failed\n");

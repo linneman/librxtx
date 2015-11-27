@@ -68,9 +68,9 @@ I2CPort.Initialize
    perform:     Initialize the native library
    return:      none
 ----------------------------------------------------------*/
-JNIEXPORT void JNICALL Java_gnu_io_I2CPort_Initialize( 
+JNIEXPORT void JNICALL Java_gnu_io_I2CPort_Initialize(
 	JNIEnv *env,
-	jclass jclazz 
+	jclass jclazz
 	)
 {
 #ifndef WIN32
@@ -86,18 +86,20 @@ JNIEXPORT void JNICALL Java_gnu_io_I2CPort_Initialize(
 	sigaction( SIGIO, NULL, &handler );
 	if( !handler.sa_handler ) signal( SIGIO, SIG_IGN );
 #endif /* !__FreeBSD__ */
-#if defined(__linux__) 
+#if defined(__linux__)
 	/* Lets let people who upgraded kernels know they may have problems */
 	if (uname (&name) == -1)
 	{
 		fprintf(stderr,"RXTX WARNING:  cannot get system name\n");
 		return;
 	}
+#if(0)
 	if(strcmp(name.release,UTS_RELEASE)!=0)
 	{
 		fprintf(stderr, "\n\n\nRXTX WARNING:  This library was compiled to run with OS release %s and you are currently running OS release %s.  In some cases this can be a problem.  Try recompiling RXTX if you notice strange behavior.  If you just compiled RXTX make sure /usr/include/linux is a symbolic link to the include files that came with the kernel source and not an older copy.\n\n\npress enter to continue\n",UTS_RELEASE,name.release);
 		getchar();
 	}
+#endif /* #if(0) */
 #endif /* __linux__ */
 #endif /* WIN32 */
 }
@@ -107,18 +109,18 @@ JNIEXPORT void JNICALL Java_gnu_io_I2CPort_Initialize(
 I2CPort.open
 
    accept:      The device to open.  ie "/dev/ttyS0"
-   perform:     open the device, set the termios struct to sane settings and 
+   perform:     open the device, set the termios struct to sane settings and
                 return the filedescriptor
    return:      fd
    exceptions:  IOExcepiton
    comments:    Very often people complain about not being able to get past
-                this function and it turns out to be permissions on the 
+                this function and it turns out to be permissions on the
                 device file or bios has the device disabled.
-----------------------------------------------------------*/ 
-JNIEXPORT jint JNICALL Java_gnu_io_I2CPort_open( 
-	JNIEnv *env, 
+----------------------------------------------------------*/
+JNIEXPORT jint JNICALL Java_gnu_io_I2CPort_open(
+	JNIEnv *env,
 	jobject jobj,
-	jstring jstr 
+	jstring jstr
 	)
 {
 	struct termios ttyset;
@@ -166,7 +168,7 @@ I2CPort.nativeClose
    perform:     get the fd from the java end and close it
    return:      none
    exceptions:  none
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 JNIEXPORT void JNICALL Java_gnu_io_I2CPort_nativeClose( JNIEnv *env,
 	jobject jobj )
 {
@@ -186,7 +188,7 @@ JNIEXPORT void JNICALL Java_gnu_io_I2CPort_nativeClose( JNIEnv *env,
    perform:    set the i2c port parameters
    return:     void
    exceptions: UnsupportedCommOperationException
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 JNIEXPORT void JNICALL Java_gnu_io_I2CPort_nativeSetI2CPortParams(
 	JNIEnv *env, jobject jobj, jint speed, jint dataBits, jint stopBits,
 	jint parity )
@@ -223,7 +225,7 @@ fail:
    exceptions: UnsupportedCommOperationException
    comments:   Only the lowest level code should know about
                the magic constants.
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 int translate_speed( JNIEnv *env, jint speed )
 {
 	switch( speed ) {
@@ -264,7 +266,7 @@ int translate_speed( JNIEnv *env, jint speed )
    return:     1 if successful
 					0 if an exception is thrown
    exceptions: UnsupportedCommOperationException
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 int translate_data_bits( JNIEnv *env, int *cflag, jint dataBits )
 {
 	int temp = (*cflag) & ~CSIZE;
@@ -299,7 +301,7 @@ int translate_data_bits( JNIEnv *env, int *cflag, jint dataBits )
    exceptions: UnsupportedCommOperationException
    comments:   If you specify 5 data bits and 2 stop bits, the port will
                allegedly use 1.5 stop bits.  Does anyone care?
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 int translate_stop_bits( JNIEnv *env, int *cflag, jint stopBits )
 {
 	switch( stopBits ) {
@@ -326,7 +328,7 @@ int translate_stop_bits( JNIEnv *env, int *cflag, jint stopBits )
    exceptions: UnsupportedCommOperationException
    comments:   The CMSPAR bit should be used for 'mark' and 'space' parity,
                but it's not in glibc's includes.  Oh well, rarely used anyway.
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 int translate_parity( JNIEnv *env, int *cflag, jint parity )
 {
 	(*cflag) &= ~(PARENB | PARODD);
@@ -369,9 +371,9 @@ I2CPort.writeByte
    perform:     write a single byte to the port
    return:      none
    exceptions:  IOException
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 JNIEXPORT void JNICALL Java_gnu_io_I2CPort_writeByte( JNIEnv *env,
-	jobject jobj, jint ji ) 
+	jobject jobj, jint ji )
 {
 	unsigned char byte = (unsigned char)ji;
 	int fd = get_java_var( env, jobj,"fd","I" );
@@ -390,13 +392,13 @@ JNIEXPORT void JNICALL Java_gnu_io_I2CPort_writeByte( JNIEnv *env,
 /*----------------------------------------------------------
 I2CPort.writeArray
 
-   accept:      jbarray: bytes used for writing 
+   accept:      jbarray: bytes used for writing
                 offset: offset in array to start writing
                 count: Number of bytes to write
    perform:     write length bytes of jbarray
    return:      none
    exceptions:  IOException
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 JNIEXPORT void JNICALL Java_gnu_io_I2CPort_writeArray( JNIEnv *env,
 	jobject jobj, jbyteArray jbarray, jint offset, jint count )
 {
@@ -437,7 +439,7 @@ JNIEXPORT void JNICALL Java_gnu_io_I2CPort_drain( JNIEnv *env,
 	jobject jobj )
 {
 	int fd = get_java_var( env, jobj,"fd","I" );
-	int result, count=0; 
+	int result, count=0;
 
 	do {
 		result=tcdrain (fd);
@@ -455,7 +457,7 @@ I2CPort.sendBreak
    perform:    send break for actual time.  not less than 0.25 seconds.
    exceptions: none
    comments:   not very precise
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 JNIEXPORT void JNICALL Java_gnu_io_I2CPort_sendBreak( JNIEnv *env,
 	jobject jobj, jint duration )
 {
@@ -467,13 +469,13 @@ JNIEXPORT void JNICALL Java_gnu_io_I2CPort_sendBreak( JNIEnv *env,
 /*----------------------------------------------------------
 I2CPort.NativegetReceiveTimeout
 
-   accept:     none 
-   perform:    get termios.c_cc[VTIME] 
-   return:     VTIME 
+   accept:     none
+   perform:    get termios.c_cc[VTIME]
+   return:     VTIME
    comments:   see  NativeEnableReceiveTimeoutThreshold
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 JNIEXPORT jint JNICALL Java_gnu_io_I2CPort_NativegetReceiveTimeout(
-	JNIEnv *env, 
+	JNIEnv *env,
 	jobject jobj
 	)
 {
@@ -490,13 +492,13 @@ fail:
 /*----------------------------------------------------------
 I2CPort.NativeisReceiveTimeoutEnabled
 
-   accept:     none 
-   perform:    determine if VTIME is none 0 
-   return:     JNI_TRUE if VTIME > 0 else JNI_FALSE 
+   accept:     none
+   perform:    determine if VTIME is none 0
+   return:     JNI_TRUE if VTIME > 0 else JNI_FALSE
    comments:   see  NativeEnableReceiveTimeoutThreshold
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 JNIEXPORT jboolean JNICALL Java_gnu_io_I2CPort_NativeisReceiveTimeoutEnabled(
-	JNIEnv *env, 
+	JNIEnv *env,
 	jobject jobj
 	)
 {
@@ -521,7 +523,7 @@ I2CPort.isDSR
    comments:    DSR stands for Data Set Ready
 ----------------------------------------------------------*/
 JNIEXPORT jboolean JNICALL Java_gnu_io_I2CPort_isDSR( JNIEnv *env,
-	jobject jobj ) 
+	jobject jobj )
 {
 	unsigned int result = 0;
 	int fd = get_java_var( env, jobj,"fd","I" );
@@ -541,7 +543,7 @@ I2CPort.isCD
    exceptions:  none
    comments:    CD stands for Carrier Detect
                 The following comment has been made...
-                "well, it works, there might ofcourse be a bug, but making DCD 
+                "well, it works, there might ofcourse be a bug, but making DCD
                 permanently on fixed it for me so I don't care"
 
 ----------------------------------------------------------*/
@@ -567,7 +569,7 @@ I2CPort.isCTS
    comments:    CTS stands for Clear To Send.
 ----------------------------------------------------------*/
 JNIEXPORT jboolean JNICALL Java_gnu_io_I2CPort_isCTS( JNIEnv *env,
-	jobject jobj ) 
+	jobject jobj )
 {
 	unsigned int result = 0;
 	int fd = get_java_var( env, jobj,"fd","I" );
@@ -631,7 +633,7 @@ I2CPort.setRTS
    comments:    tcsetattr with c_cflag CRTS_IFLOW
 ----------------------------------------------------------*/
 JNIEXPORT void JNICALL Java_gnu_io_I2CPort_setRTS( JNIEnv *env,
-	jobject jobj, jboolean state ) 
+	jobject jobj, jboolean state )
 {
 	unsigned int result = 0;
 	int fd = get_java_var( env, jobj,"fd","I" );
@@ -655,7 +657,7 @@ I2CPort.setDSR
    comments:    tcsetattr with c_cflag CRTS_IFLOW
 ----------------------------------------------------------*/
 JNIEXPORT void JNICALL Java_gnu_io_I2CPort_setDSR( JNIEnv *env,
-	jobject jobj, jboolean state ) 
+	jobject jobj, jboolean state )
 {
 	unsigned int result = 0;
 	int fd = get_java_var( env, jobj,"fd","I" );
@@ -725,10 +727,10 @@ read_byte_array
                 >0 number of bytes read
    comments:    According to the Communications API spec, a receive threshold
                 of 1 is the same as having the threshold disabled.
-		
+
 		The nuts and bolts are documented in
 		NativeEnableReceiveTimeoutThreshold()
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 int read_byte_array( int fd, unsigned char *buffer, int length, int timeout )
 {
 	int ret, left, bytes = 0;
@@ -744,7 +746,7 @@ int read_byte_array( int fd, unsigned char *buffer, int length, int timeout )
 		sleep.tv_sec = timeout / 1000;
 		sleep.tv_usec = 1000 * ( timeout % 1000 );
 	}
-	while( bytes < length ) 
+	while( bytes < length )
 	{
          /* FIXME: In Linux, select updates the timeout automatically, so
             other OSes will need to update it manually if they want to have
@@ -771,10 +773,10 @@ NativeEnableReceiveTimeoutThreshold
    perform:     Set c_cc->VMIN to threshold and c_cc=>VTIME to vtime
    return:      void
    exceptions:  IOException
-   comments:    This is actually all handled in read with select in 
+   comments:    This is actually all handled in read with select in
                 canonical input mode.
-----------------------------------------------------------*/ 
- 
+----------------------------------------------------------*/
+
 JNIEXPORT void JNICALL Java_gnu_io_I2CPort_NativeEnableReceiveTimeoutThreshold(JNIEnv *env, jobject jobj, jint vtime, jint threshold, jint buffer)
 {
 	int fd = get_java_var( env, jobj,"fd","I" );
@@ -798,10 +800,10 @@ I2CPort.readByte
    perform:     Read a single byte from the port
    return:      The byte read
    exceptions:  IOException
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 JNIEXPORT jint JNICALL Java_gnu_io_I2CPort_readByte( JNIEnv *env,
 	jobject jobj )
-{ 
+{
 	int bytes;
 	unsigned char buffer[ 1 ];
 	int fd = get_java_var( env, jobj,"fd","I" );
@@ -819,7 +821,7 @@ JNIEXPORT jint JNICALL Java_gnu_io_I2CPort_readByte( JNIEnv *env,
 /*----------------------------------------------------------
 I2CPort.readArray
 
-   accept:       offset (offset to start storing data in the jbarray) and 
+   accept:       offset (offset to start storing data in the jbarray) and
                  Length (bytes to read)
    perform:      read bytes from the port into a byte array
    return:       bytes read on success
@@ -827,10 +829,10 @@ I2CPort.readArray
    exceptions:   IOException
    comments:     throws ArrayIndexOutOfBoundsException if asked to
                  read more than SSIZE_MAX bytes
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 JNIEXPORT jint JNICALL Java_gnu_io_I2CPort_readArray( JNIEnv *env,
 	jobject jobj, jbyteArray jbarray, jint offset, jint length )
-{  
+{
 	int bytes;
 	jbyte *body;
 	unsigned char *buffer;
@@ -872,14 +874,14 @@ I2CPort.nativeavailable
    return:      available bytes
                 -1 on error
    exceptions:  none
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 JNIEXPORT jint JNICALL Java_gnu_io_I2CPort_nativeavailable( JNIEnv *env,
 	jobject jobj )
 {
 	int fd = get_java_var( env, jobj,"fd","I" );
 	int result;
 
-	if( ioctl( fd, FIONREAD, &result ) ) 
+	if( ioctl( fd, FIONREAD, &result ) )
 	{
 		throw_java_exception( env, IO_EXCEPTION, "nativeavailable", strerror( errno ) );
 		return -1;
@@ -891,7 +893,7 @@ JNIEXPORT jint JNICALL Java_gnu_io_I2CPort_nativeavailable( JNIEnv *env,
 /*----------------------------------------------------------
 I2CPort.setflowcontrol
 
-   accept:      flowmode 
+   accept:      flowmode
 	FLOWCONTROL_NONE        none
 	FLOWCONTROL_RTSCTS_IN   hardware flow control
 	FLOWCONTROL_RTSCTS_OUT         ""
@@ -910,7 +912,7 @@ JNIEXPORT void JNICALL Java_gnu_io_I2CPort_setflowcontrol( JNIEnv *env,
 	int fd = get_java_var( env, jobj,"fd","I" );
 
 	if( tcgetattr( fd, &ttyset ) ) goto fail;
-	
+
 	if ( flowmode & ( FLOWCONTROL_RTSCTS_IN | FLOWCONTROL_RTSCTS_OUT ) )
 		ttyset.c_cflag |= HARDWARE_FLOW_CONTROL;
 	else ttyset.c_cflag &= ~HARDWARE_FLOW_CONTROL;
@@ -941,7 +943,7 @@ I2CPort.eventLoop
    return:      none
    exceptions:  none
    comments:    FIXME This is probably wrong on bsd.
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 JNIEXPORT void JNICALL Java_gnu_io_I2CPort_eventLoop( JNIEnv *env,
 	jobject jobj )
 {
@@ -967,7 +969,7 @@ JNIEXPORT void JNICALL Java_gnu_io_I2CPort_eventLoop( JNIEnv *env,
 #if defined(TIOCGICOUNT)
 	if( ioctl( fd, TIOCGICOUNT, &osis ) < 0 ) {
 		fprintf( stderr, "Port does not support TIOCGICOUNT events\n" );
-		return; 
+		return;
 	}
 #else
 	fprintf( stderr, "Port does not support all Hardware events\n" );
@@ -982,14 +984,14 @@ JNIEXPORT void JNICALL Java_gnu_io_I2CPort_eventLoop( JNIEnv *env,
 	while( !interrupted ) {
 		FD_SET( fd, &rfds );
 		/* Check every 1 second, or on receive data */
-		tv_sleep.tv_sec = 1; 
+		tv_sleep.tv_sec = 1;
 		tv_sleep.tv_usec = 0;
 		do {
 			ret=select( fd + 1, &rfds, NULL, NULL, &tv_sleep );
 		}  while (ret < 0 && errno==EINTR);
 		if( ret < 0 ) {
 			fprintf( stderr, "select() Failed\n" );
-			break; 
+			break;
 		}
 
 #if defined TIOCSERGETLSR
@@ -1006,13 +1008,13 @@ JNIEXPORT void JNICALL Java_gnu_io_I2CPort_eventLoop( JNIEnv *env,
 	/*	wait for RNG, DSR, CD or CTS  but not DataAvailable
 	 *      The drawback here is it never times out so if someone
 	 *      reads there will be no chance to try again.
-	 *      This may make sense if the program does not want to 
+	 *      This may make sense if the program does not want to
 	 *      be notified of data available or errors.
 	 *	ret=ioctl(fd,TIOCMIWAIT);
 	 */
 		if( ioctl( fd, TIOCGICOUNT, &sis ) ) {
 			fprintf( stderr, "TIOCGICOUNT Failed\n" );
-			break; 
+			break;
 		}
 		while( sis.frame != osis.frame ) {
 			(*env)->CallVoidMethod( env, jobj, method, (jint)SPE_FE, JNI_TRUE );
@@ -1034,7 +1036,7 @@ JNIEXPORT void JNICALL Java_gnu_io_I2CPort_eventLoop( JNIEnv *env,
 #endif /*  TIOCGICOUNT */
 		if( ioctl( fd, TIOCMGET, &mflags ) ) {
 			fprintf( stderr, "TIOCMGET Failed\n" );
-			break; 
+			break;
 		}
 		interrupted = (*env)->CallStaticBooleanMethod( env, jthread, interrupt );
 	       /* A Portable implementation */
@@ -1088,7 +1090,7 @@ JNIEXPORT void JNICALL Java_gnu_io_I2CPort_eventLoop( JNIEnv *env,
                 state has changed, we can send a I2CPortEvent for each
                 interrupt (change) that has occured.  If we don't do this,
                 we'll miss a whole bunch of events.
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 void send_modem_events( JNIEnv *env, jobject jobj, jmethodID method,
 	int event, int change, int state )
 {
@@ -1112,7 +1114,7 @@ get_java_fd
    return:      the fd field from the java object
    exceptions:  none
    comments:
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 int get_java_var( JNIEnv *env, jobject jobj, char *id, char *type )
 {
 	int result = 0;
@@ -1140,7 +1142,7 @@ throw_java_exception
    return:      none
    exceptions:  haha!
    comments:
-----------------------------------------------------------*/ 
+----------------------------------------------------------*/
 void throw_java_exception( JNIEnv *env, char *exc, char *foo, char *msg )
 {
 	char buf[ 60 ];
