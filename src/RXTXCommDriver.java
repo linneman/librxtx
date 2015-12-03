@@ -503,7 +503,7 @@ public class RXTXCommDriver implements CommDriver
 
 
 			/*  There are _many_ possible ports that can be used
-			    on Linux.  See below in the fake Linux-all-ports  
+			    on Linux.  See below in the fake Linux-all-ports
 			    case for a list.  You may add additional ports
 			    here but be warned that too many will significantly
 			    slow down port enumeration.  Linux 2.6 has udev
@@ -521,7 +521,9 @@ public class RXTXCommDriver implements CommDriver
 						String[] Temp = {
 						"ttyS", // linux Serial Ports
 						"ttySA", // for the IPAQs
-						"ttyUSB" // for USB frobs
+						"ttyUSB", // for USB frobs
+						"ttyGS", // virtual serial ports of USB CDC devices
+            "pts" // pseudo tty devices
 						};
 						CandidatePortPrefixes=Temp;
 					}
@@ -600,7 +602,7 @@ public class RXTXCommDriver implements CommDriver
 							"cuaF",    //Stallion Brumby (stli) dialout ports
 							"ttyR",    //Rocketport dialin ports
 							"cuaR",    //Rocketport dialout ports
-							"stl"      //Stallion EasyIO board or Brumby N 
+							"stl"      //Stallion EasyIO board or Brumby N
 						};
 						CandidatePortPrefixes=Temp;
 					}
@@ -708,7 +710,9 @@ public class RXTXCommDriver implements CommDriver
 						// Keyspan USA-19 adapter
 							"cu.KeyUSA19181.",
 						// Keyspan USA-19 adapter
-							"tty.KeyUSA19181."
+							"tty.KeyUSA19181.",
+            // for Mac OS X we currently prefer to scan all tty ports
+              "tty"
 						};
 						CandidatePortPrefixes=Temp;
 					}
@@ -799,7 +803,7 @@ public class RXTXCommDriver implements CommDriver
 				case CommPortIdentifier.PORT_SERIAL:
 					if(osName.toLowerCase().indexOf("windows") == -1 )
 					{
-					
+
 						return new RXTXPort( PortName );
 					}
 					else
