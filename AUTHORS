@@ -1,7 +1,11 @@
-This is AUTHORS Tue Oct 15 20:32:04 MDT 2002
+This is AUTHORS Sun Nov 18 09:29:52 MST 2007
 
 This package is not the result of one persons time.  Recognition is given
 to the following people for their assistance.
+
+Otto Linnemann <otto.linnemann@googlemail.com> transition to autotools build to simplify cross compilation
+
+Martin Oberhuber <martin.oberhuber@windriver.com> Has submitted several fixes for rxtx integration into Eclipse.
 
 Stephane Cachat <stephane@cachat.org> J2SE java.util.loggin and property file to match
 
@@ -39,8 +43,8 @@ did some intense testing and debugging of RS232 on Linux.
 which appears to have resolved many problems.
 
 W. Craig Trader <ct7@vitelinc.com> and Gareth Lee <gareth@ee.uwa.edu.au> Added
-Calls to DeleteLocalRef to functions get_java_var and throw_java_exception to 
-avoid FATAL ERROR in native method: Out of memory when expanding local ref 
+Calls to DeleteLocalRef to functions get_java_var and throw_java_exception to
+avoid FATAL ERROR in native method: Out of memory when expanding local ref
 table beyond capacity
 
 Tim Groner <tgroner@cs.umanitoba.ca> Assistance tracking down an open() bug
@@ -72,8 +76,8 @@ Douglas Lau <douglau@earthlink.net>
 
 Wayne Roberts  <wroberts1@home.com>
    Win32 Enhancements (extensive)
-   Read Timeouts.  Thresholds.  event notification.   Linux kernel hacking.  
-   verification of rxtx with analysis equipment. 
+   Read Timeouts.  Thresholds.  event notification.   Linux kernel hacking.
+   verification of rxtx with analysis equipment.
    Wayne has been invaluable to rxtx.  The project would be a 404 without him.
 
 Yuen-Ping Leung <yuenping@semiotek.com>
@@ -87,8 +91,8 @@ Sheldon Young sheldon@intergate.bc.ca
    JCL/CommAPI compatibility with "javacomm20-ea"
    Many fixes and contributions.
 
-kevinh@acm.org (Kevin Hester) 
-   CommAPI support.  The Linux Comm Project 
+kevinh@acm.org (Kevin Hester)
+   CommAPI support.  The Linux Comm Project
    http://www.interstice.com/~kevinh/linuxcomm.html
    src/RXTXPort.java src/RXTXCommDriver.java
 
@@ -96,7 +100,7 @@ karl@blackdown.org (Karl Asha)
    Karl gave this package a web presence at www.blackdown.org
    Debugging the autoconfig
    Reminding me to upgrade to 1.1.1.
- 
+
 oliver@io.aec.at (Oliver Frommel)
    IRIX port
    Fixed open() call so pins 4,5,6,8 and 20 don't need to be tied together.
@@ -111,7 +115,7 @@ Michael.Forte@Corp.Sun.COM (Mike Forte)
 Gilles.Paquet@ulb.ac.be (Gilles Paquet)
    SunOS port
 
-Martin Pool <mbp@linuxcare.com> 
+Martin Pool <mbp@linuxcare.com>
 
    Added support for explicitly-specified lists of ports
 

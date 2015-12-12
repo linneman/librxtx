@@ -41,7 +41,7 @@ else
 fi
 
 
-source $LTLIBFILE
+source ./$LTLIBFILE
 for l in $library_names
 do
 	ln -f -s $LIBDIR/$l $TARGETDIR

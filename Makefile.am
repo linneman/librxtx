@@ -15,10 +15,10 @@ SPATH = $(TOP)/src/
 CLASSTOP=gnu
 CLASSDIR=gnu.io
 CLASSDEST=gnu/io
-CLASSES = $(patsubst $(SPATH)/%.java,$(TOP)/$(CLASSDEST)/%.class,$(wildcard $(SPATH)/*.java))
+CLASSES = $(patsubst $(SPATH)/gnu/io/%.java,$(TOP)/$(CLASSDEST)/%.class,$(wildcard $(SPATH)/gnu/io/*.java))
 
-javafiles = $(wildcard $(SPATH)/*.java)
-javahfiles = $(patsubst $(SPATH)/%.java,%,$(javafiles))
+javafiles = $(wildcard $(SPATH)/gnu/io/*.java)
+javahfiles = $(patsubst $(SPATH)/gnu/io/%.java,%,$(javafiles))
 javahdest="posix-gnu"
 
 print-%  : ; @echo $* = $($*)
@@ -58,7 +58,7 @@ librxtxSerial_la_SOURCES = \
 $(CLASSES): $(javafiles)
 	$(JAVAC) $(JAVAC_FLAGS) $(javafiles)
 	$(JAVAH) -classpath $(CLASSPATH) -d $(javahdest) -jni `(for i in $(javahfiles);do \
-		if grep > /dev/null native.*\( $(SPATH)/$$i.java; then \
+		if grep > /dev/null native.*\( $(SPATH)/gnu/io/$$i.java; then \
 			echo $(CLASSDIR).$$i; \
 		fi; \
 	done)`

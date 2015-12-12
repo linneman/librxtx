@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.61])
-AC_INIT([librxtx], [2.1.7], [taj@www.linux.org.uk])
+AC_INIT([librxtx], [2.2.2], [taj@www.linux.org.uk])
 AM_INIT_AUTOMAKE
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([src/SerialImp.c])

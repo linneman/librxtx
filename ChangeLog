@@ -1,8 +1,110 @@
 This is ChangeLog
-Sun Jan 15 07:15:13 MST 2006
+Wed Feb  4 17:32:37 EST 2009
 
 rxtx-2.1 and rxtx-2.0 changes are kept in the same file.  skip to the version
 you downloaded.
+
+2.2 ???
+		Solaris static libgcc link configure fix.
+
+		64 bit JNI Fixes  <dan.sandberg.lists@gmail.com>
+		Dan Sandberg
+		http://mailman.qbang.org/pipermail/rxtx/2007-June/3676251.html
+
+	 	Maintain DTR=false during setSerialPortParams	
+		Beat Arnet <beat.arnet@gmail.com>
+		http://mailman.qbang.org/pipermail/rxtx/2009-January/3682508.html
+		http://bugzilla.qbang.org/show_bug.cgi?id=104
+		
+		Avoid debug sprintf overflows on win32.
+		http://mailman.qbang.org/pipermail/rxtx/2009-January/3682496.html
+		Luis Pires <lpdev@ruabrasil.org>
+
+		disable dcb.fDtrControl to avoid unexpected behavior.
+		Beat Arnet <beat.arnet@gmail.com>
+		http://bugzilla.qbang.org/show_bug.cgi?id=104
+
+		threshold fix
+		Alexandre Rusev <cyberflex@mail.ru>
+		http://bugzilla.qbang.org/show_bug.cgi?id=85
+
+                RXTX close deadlocks in REXTXPort.finalize
+		Joachim Buechse <joachim@buechse.de>
+		http://bugzilla.qbang.org/show_bug.cgi?id=53
+
+		Add ACM serial devices to all known ports.
+		Duncan Pierce <duncan.pierce@syntropy.co.uk>
+		http://bugzilla.qbang.org/show_bug.cgi?id=51
+
+		Concurrency fixes for SMP/multicore systems
+		U. George <netbeans@gatworks.com>
+		http://bugzilla.qbang.org/show_bug.cgi?id=100
+
+		Fixes for MAC systems with no drivers installed.
+		1.5 stop bit fix
+
+		Enable universal library builds for Mac OS X
+		Andre-John Mas ajmas@sympatico.ca 
+		http://mailman.qbang.org/pipermail/rxtx/2007-December/1793319.html
+
+		Do not remove and ignore interrupts.
+		Joachim Buechse <joachim@buechse.de>
+		http://bugzilla.qbang.org/show_bug.cgi?id=45
+
+                find ports which were added after program startup on Mac OS X.
+                Martin Oberhuber <martin.oberhuber@windriver.com> 
+		http://bugzilla.qbang.org/show_bug.cgi?id=48
+
+		Clean up CommPort Ownership code, avoid possible deadlocks,
+		fix lost commport ownership events.
+                Martin Oberhuber <martin.oberhuber@windriver.com> 
+		http://bugzilla.qbang.org/show_bug.cgi?id=83
+
+		rxtx does not compile against JDK-1.6
+		Neboj¿a <nebojsa@anja.ig3.net>
+		http://bugzilla.qbang.org/show_bug.cgi?id=84
+
+		configure script failed at line UTS_RELEASE
+		megov <megov@mail.ru>
+		http://bugzilla.qbang.org/show_bug.cgi?id=80
+
+		code cleanup patch (extra ';' creates bug for if statements
+		+ new String() calls removed)
+		Xavier Le Vourch <xavier@brittanysoftware.com>
+		http://bugzilla.qbang.org/show_bug.cgi?id=77
+
+		Wont compile on linux ppc with glibc 2.5 - no sys/io.h
+		Brian Johnson <site-rxtx.org@sherbang.com>
+		http://bugzilla.qbang.org/show_bug.cgi?id=72
+
+		rxtx overwrites System properties
+		Andrew Gillett <asgillett@gmail.com>
+		Nektarios K. Papadopoulos <npapadop@inaccessnetworks.com>
+		Neboj¿a <nebojsa@anja.ig3.net>
+		http://bugzilla.qbang.org/show_bug.cgi?id=64
+
+		Solaris ACM port support
+		Dave Cleal <dc@cleal.com>
+		http://bugzilla.qbang.org/show_bug.cgi?id=59
+
+		Setting of non-standard baud rate fails.
+		Andrew Prunicki <aprunicki@yahoo.com>
+		http://bugzilla.qbang.org/show_bug.cgi?id=58
+
+		RXTX uses lockfiles on MacOS X (instead of ioctl TIOCEXCL)
+		Joachim Buechse <joachim@buechse.de>
+		http://bugzilla.qbang.org/show_bug.cgi?id=50
+
+		JavaDoc fixes
+		Joachim Buechse <joachim@buechse.de>
+		http://bugzilla.qbang.org/show_bug.cgi?id=49
+
+		need to review:
+
+		http://bugzilla.qbang.org/show_bug.cgi?id=53
+		http://bugzilla.qbang.org/show_bug.cgi?id=46
+		http://bugzilla.qbang.org/show_bug.cgi?id=41
+		
 
 2.1-7 Jan 29 2006
 		Mac OS X x86/universal binaries/install fixes

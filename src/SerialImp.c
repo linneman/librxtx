@@ -1,20 +1,59 @@
 /*-------------------------------------------------------------------------
-|   rxtx is a native interface to serial ports in java.
-|   Copyright 1997-2004 by Trent Jarvi taj@www.linux.org.uk
+|   RXTX License v 2.1 - LGPL v 2.1 + Linking Over Controlled Interface.
+|   RXTX is a native interface to serial ports in java.
+|   Copyright 1997-2009 by Trent Jarvi tjarvi@qbang.org and others who
+|   actually wrote it.  See individual source files for more information.
+|
+|   A copy of the LGPL v 2.1 may be found at
+|   http://www.gnu.org/licenses/lgpl.txt on March 4th 2007.  A copy is
+|   here for your convenience.
 |
 |   This library is free software; you can redistribute it and/or
-|   modify it under the terms of the GNU Library General Public
+|   modify it under the terms of the GNU Lesser General Public
 |   License as published by the Free Software Foundation; either
-|   version 2 of the License, or (at your option) any later version.
+|   version 2.1 of the License, or (at your option) any later version.
 |
 |   This library is distributed in the hope that it will be useful,
 |   but WITHOUT ANY WARRANTY; without even the implied warranty of
 |   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-|   Library General Public License for more details.
+|   Lesser General Public License for more details.
 |
-|   You should have received a copy of the GNU Library General Public
+|   An executable that contains no derivative of any portion of RXTX, but
+|   is designed to work with RXTX by being dynamically linked with it,
+|   is considered a "work that uses the Library" subject to the terms and
+|   conditions of the GNU Lesser General Public License.
+|
+|   The following has been added to the RXTX License to remove
+|   any confusion about linking to RXTX.   We want to allow in part what
+|   section 5, paragraph 2 of the LGPL does not permit in the special
+|   case of linking over a controlled interface.  The intent is to add a
+|   Java Specification Request or standards body defined interface in the
+|   future as another exception but one is not currently available.
+|
+|   http://www.fsf.org/licenses/gpl-faq.html#LinkingOverControlledInterface
+|
+|   As a special exception, the copyright holders of RXTX give you
+|   permission to link RXTX with independent modules that communicate with
+|   RXTX solely through the Sun Microsytems CommAPI interface version 2,
+|   regardless of the license terms of these independent modules, and to copy
+|   and distribute the resulting combined work under terms of your choice,
+|   provided that every copy of the combined work is accompanied by a complete
+|   copy of the source code of RXTX (the version of RXTX used to produce the
+|   combined work), being distributed under the terms of the GNU Lesser General
+|   Public License plus this exception.  An independent module is a
+|   module which is not derived from or based on RXTX.
+|
+|   Note that people who make modified versions of RXTX are not obligated
+|   to grant this special exception for their modified versions; it is
+|   their choice whether to do so.  The GNU Lesser General Public License
+|   gives permission to release a modified version without this exception; this
+|   exception also makes it possible to release a modified version which
+|   carries forward this exception.
+|
+|   You should have received a copy of the GNU Lesser General Public
 |   License along with this library; if not, write to the Free
 |   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+|   All trademarks belong to their respective owners.
 --------------------------------------------------------------------------*/
 #if defined(__MWERKS__) /* dima */
 #include "RXTXPort.h" /* dima */
@@ -265,7 +304,7 @@ JNIEXPORT void JNICALL RXTXPort(Initialize)(
 #endif /* SA_RESTART */
 		new_action.sa_mask = block_mask;
 		sigaction(SIGIO, &new_action, NULL);
-	} 
+	}
 #endif /* !WIN32 */
 	ENTER( "RXTXPort:Initialize" );
 #ifdef PRERELEASE
@@ -507,7 +546,7 @@ set_java_vars
    comments:    preopened refers to the fact that the serial port has
 		been configured before the Java open() has been called.
 ----------------------------------------------------------*/
-		
+
 void set_java_vars( JNIEnv *env, jobject jobj, int fd )
 {
 	struct termios ttyset;
@@ -531,7 +570,7 @@ void set_java_vars( JNIEnv *env, jobject jobj, int fd )
 		return;
 	}
 
-	
+
 	switch( ttyset.c_cflag&CSIZE ) {
 		case CS5:  databits = JDATABITS_5; break;
 		case CS6:  databits = JDATABITS_6; break;
@@ -553,7 +592,14 @@ void set_java_vars( JNIEnv *env, jobject jobj, int fd )
 	}
         switch( ttyset.c_cflag&(CSTOPB) ) {
                 case 0: stop_bits = STOPBITS_1; break;
-                case CSTOPB:  stop_bits = STOPBITS_2; break;
+                case CSTOPB:
+			if ( (ttyset.c_cflag & CSIZE) ==  CS5 ) {
+				stop_bits = STOPBITS_1_5;
+			}
+			else {
+				stop_bits = STOPBITS_2;
+			}
+			break;
         }
 /*
 dima writes:
@@ -624,14 +670,14 @@ JNIEXPORT jint JNICALL RXTXPort(open)(
 
  	filename = (*env)->GetStringUTFChars( env, jstr, 0 );
 
-	/* 
+	/*
 		LOCK is one of three functions defined in SerialImp.h
 
 			uucp_lock		Solaris
 			fhs_lock		Linux
 			system_does_not_lock	Win32
 	*/
-			
+
 	ENTER( "RXTXPort:open" );
 	if ( LOCK( filename, pid ) )
 	{
@@ -657,6 +703,26 @@ JNIEXPORT jint JNICALL RXTXPort(open)(
 	do {
 		fd=OPEN (filename, O_RDWR | O_NOCTTY | O_NONBLOCK );
 	}  while (fd < 0 && errno==EINTR);
+
+#ifdef OPEN_EXCL
+       /*
+       Note that open() follows POSIX semantics: multiple open() calls to
+       the same file will succeed unless the TIOCEXCL ioctl is issued.
+       This will prevent additional opens except by root-owned processes.
+       See tty(4) ("man 4 tty") and ioctl(2) ("man 2 ioctl") for details.
+       */
+
+       if (fd >= 0 && (ioctl(fd, TIOCEXCL) == -1))
+       {
+               sprintf( message, "open: exclusive access denied for %s\n",
+                       filename );
+               report( message );
+               report_error( message );
+
+               close(fd);
+               goto fail;
+       }
+#endif /* OPEN_EXCL */
 
 	if( configure_port( fd ) ) goto fail;
 	(*env)->ReleaseStringUTFChars( env, jstr, filename );
@@ -705,7 +771,7 @@ JNIEXPORT void JNICALL RXTXPort(nativeClose)( JNIEnv *env,
 	}
 	report("<nativeClose: pid\n");
 
-	/* 
+	/*
 		UNLOCK is one of three functions defined in SerialImp.h
 
 			uucp_unlock		Solaris
@@ -716,7 +782,11 @@ JNIEXPORT void JNICALL RXTXPort(nativeClose)( JNIEnv *env,
 	ENTER( "RXTXPort:nativeClose" );
 	if (fd > 0)
 	{
-		do {
+		report("nativeClose: discarding remaining data (tcflush)\n");
+		/* discard any incoming+outgoing data not yet read/sent */
+		tcflush(fd, TCIOFLUSH);
+ 		do {
+			report("nativeClose:  calling close\n");
 			result=CLOSE (fd);
 		}  while ( result < 0 && errno == EINTR );
 		UNLOCK( filename, pid );
@@ -795,6 +865,19 @@ int set_port_params( JNIEnv *env, int fd, int cspeed, int dataBits,
 		result &= ~TIOCM_DTR;
 		ioctl( fd, TIOCMSET, &result );
 	}
+	/*
+	   B38400 is a special case in Linux for custom baud rates.
+
+	   We just treat this as a custom speed for now.  If you take this ifdef
+	   out and select baud rates 38400 then 28800 then 38400, you will get
+	   a final baud rate of 28800 because you did not update the divisor.
+
+	   See the next ifdef below for the divisor.
+	*/
+#if defined(TIOCGSERIAL)
+	if ( cspeed == B38400 )
+		cspeed = 38400;
+#endif /* TIOCGSERIAL */
 	if(     cfsetispeed( &ttyset, cspeed ) < 0 ||
 		cfsetospeed( &ttyset, cspeed ) < 0 )
 	{
@@ -816,6 +899,11 @@ int set_port_params( JNIEnv *env, int fd, int cspeed, int dataBits,
 		*/
 
 #if defined(TIOCGSERIAL)
+		if ( ioctl( fd, TIOCGSERIAL, &sstruct ) < 0 )
+		{
+			report( "set_port_params: Cannot Get Serial Port Settings\n" );
+			return(1);
+		}
 		sstruct.custom_divisor = ( sstruct.baud_base/cspeed );
 		cspeed = B38400;
 #endif /* TIOCGSERIAL */
@@ -829,7 +917,7 @@ int set_port_params( JNIEnv *env, int fd, int cspeed, int dataBits,
 #if defined(TIOCSSERIAL)
 		/*  It is assumed Win32 does this for us */
 		if (	sstruct.baud_base < 1 ||
-			ioctl( fd, TIOCSSERIAL, &sstruct ) < 0 )
+		ioctl( fd, TIOCSSERIAL, &sstruct ) < 0 )
 		{
 			return( 1 );
 		}
@@ -1049,6 +1137,7 @@ int translate_stop_bits( JNIEnv *env, tcflag_t *cflag, jint stopBits )
 			return 0;
 		/*  ok.. lets try putting it in and see if anyone notices */
 		case STOPBITS_1_5:
+			(*cflag) |= CSTOPB;
 			if ( translate_data_bits( env, cflag, JDATABITS_5 ) )
 				return( 1 );
 			return 0;
@@ -1073,7 +1162,7 @@ JNIEXPORT jint JNICALL RXTXPort(nativeGetFlowControlMode)(JNIEnv *env, jobject j
 	int ret = 0;
 
 	tcgetattr( fd, &ttyset );
-	
+
 	if( ttyset.c_cflag & HARDWARE_FLOW_CONTROL )
 	{
 		ret |= ( FLOWCONTROL_RTSCTS_IN | FLOWCONTROL_RTSCTS_OUT );
@@ -1097,7 +1186,7 @@ JNIEXPORT jint JNICALL RXTXPort(nativeGetParity)(JNIEnv *env, jobject jobj, jint
 		report("nativeGetParity:  tcgetattr failed\n");
 		return( -1 );
 	}
-#ifdef  CMSPAR 
+#ifdef  CMSPAR
 	if ( ( ttyset.c_cflag & PARENB ) &&
 		( ttyset.c_cflag & PARODD ) &&
 		( ttyset.c_cflag & CMSPAR ) )
@@ -1180,11 +1269,11 @@ int translate_parity( JNIEnv *env, tcflag_t *cflag, jint parity )
 /*----------------------------------------------------------
 drain_loop()
 
-   accept:      
-   perform:	call tcdrain() and report an event when it succeds  
+   accept:
+   perform:	call tcdrain() and report an event when it succeds
    return:      none
-   exceptions:  
-   comments:  	
+   exceptions:
+   comments:
 ----------------------------------------------------------*/
 void *drain_loop( void *arg )
 {
@@ -1196,11 +1285,19 @@ void *drain_loop( void *arg )
 	for(i=0;;i++)
 	{
 		report_verbose("drain_loop:  looping\n");
+		if( eis->eventloop_interrupted )
+		{
+			goto end;
+		}
 #if defined(__sun__)
 	/* FIXME: No time to test on all OS's for production */
-		usleep(5000);
+		if (usleep(5000)) {
+			report("drain_loop:  received EINTR");
+		}
 #else
-		usleep(1000000);
+		if (usleep(1000000)) {
+			report("drain_loop:  received EINTR");
+		}
 #endif /* __sun__ */
 		/*
 		system_wait();
@@ -1229,10 +1326,14 @@ void *drain_loop( void *arg )
 				report_verbose("drain_loop:  writing not set\n");
 			}
 		}
-		else
+		else if (errno != EINTR)
 		{
 			report("drain_loop:  tcdrain bad fd\n");
 			goto end;
+		}
+		else
+		{
+			report("drain_loop:  received EINTR in tcdrain\n");
 		}
 	}
 end:
@@ -1250,13 +1351,13 @@ finalize_threads( )
    perform:     see comments
    return:      none
    exceptions:  none
-   comments:	
+   comments:
 	The is the pthread spawned on systems that can't access the
 	LSR (Line Status Register).  Without access to the LSR rxtx
 	cannot detect when the output buffer is empty in the Monitor
 	Thread.  The solution is to return the value of write's return
 	but hang around in this thread waiting for tcdrain to finish.
-	
+
 	once the drain has finished, we let the eventLoop know that the
 	output buffer is empty and the Signal is sent.
 ----------------------------------------------------------*/
@@ -1276,9 +1377,9 @@ void finalize_threads( struct event_info_struct *eis )
 #if !defined(TIOCSERGETLSR) && !defined( WIN32 )
 static void warn_sig_abort( int signo )
 {
+	/*
 	char msg[80];
 	sprintf( msg, "RXTX Recieved Signal %i\n", signo );
-	/*
 	report_error( msg );
 	*/
 }
@@ -1288,10 +1389,13 @@ static void warn_sig_abort( int signo )
 init_threads( )
 
    accept:      none
-   perform:     
+   perform:
    return:      none
    exceptions:  none
-   comments:	
+   comments:
+   this function is called from the event_loop or in other words
+   from the monitor thread. On systems !WIN32 and without TIOCSERGETLSR
+   it will create a new thread looping a call to tcdrain.
 ----------------------------------------------------------*/
 int init_threads( struct event_info_struct *eis )
 {
@@ -1303,15 +1407,19 @@ int init_threads( struct event_info_struct *eis )
 
 	report_time_start( );
 	report("init_threads:  start\n");
+	/* ignore child thread status changes */
 	sigemptyset(&newmask);
 	sigaddset(&newmask, SIGCHLD);
+
+	/* install our own signal hander */
 	newaction.sa_handler = warn_sig_abort;
 	sigemptyset( &newaction.sa_mask );
 #ifdef SA_INTERRUPT
 	newaction.sa_flags = SA_INTERRUPT;
 #endif /* SA_INTERRUPT */
 #ifdef SA_RESTART
-	newaction.sa_flags = SA_RESTART;
+	/* JOE: do not demand restart! we are handling EINTR */
+/*	newaction.sa_flags = SA_RESTART;*/
 #endif /* SA_RESTART */
 
 	sigaction(SIGABRT, &newaction, &oldaction);
@@ -1335,11 +1443,12 @@ int init_threads( struct event_info_struct *eis )
 	report("init_threads: creating drain_loop\n");
 	pthread_create( &tid, NULL, drain_loop, (void *) eis );
 	pthread_detach( tid );
+	eis->drain_tid = tid;
 #endif /* TIOCSERGETLSR */
 	report("init_threads: get eis\n");
 	jeis  = (*eis->env)->GetFieldID( eis->env, eis->jclazz, "eis", "J" );
 	report("init_threads: set eis\n");
-	(*eis->env)->SetIntField(eis->env, *eis->jobj, jeis, ( size_t ) eis );
+	(*eis->env)->SetLongField(eis->env, *eis->jobj, jeis, ( size_t ) eis );
 	report("init_threads:  stop\n");
 	report_time_end( );
 	return( 1 );
@@ -1450,7 +1559,7 @@ JNIEXPORT void JNICALL RXTXPort(writeArray)( JNIEnv *env,
 #endif /* __sun__ */
 	fd = get_java_var( env, jobj,"fd","I" );
 	body = (*env)->GetByteArrayElements( env, jbarray, 0 );
-	/* result=WRITE (fd, body + total + offset, count - total); 
+	/* result=WRITE (fd, body + total + offset, count - total);
 	(*env)->ReleaseByteArrayElements( env, jbarray, body, 0 ); */
 /* return; OH CRAP */
 
@@ -1532,7 +1641,7 @@ JNIEXPORT jboolean JNICALL RXTXPort(nativeDrain)( JNIEnv *env,
 	jobject jobj, jboolean interrupted )
 {
 	int fd = get_java_var( env, jobj,"fd","I" );
-	struct event_info_struct *eis = ( struct event_info_struct * ) get_java_var( env, jobj, "eis", "J" );
+	struct event_info_struct *eis = ( struct event_info_struct * ) get_java_var_long( env, jobj, "eis", "J" );
 	int result, count=0;
 
 	char message[80];
@@ -1545,7 +1654,7 @@ JNIEXPORT jboolean JNICALL RXTXPort(nativeDrain)( JNIEnv *env,
 		count++;
 	}  while (result && errno==EINTR && count <3);
 
-	sprintf( message, "RXTXPort:drain() returns: %i\n", result ); 
+	sprintf( message, "RXTXPort:drain() returns: %i\n", result );
 	report_verbose( message );
 #if defined(__sun__)
 	/* FIXME: No time to test on all OS's for production */
@@ -1826,7 +1935,7 @@ JNIEXPORT void JNICALL RXTXPort(setDSR)( JNIEnv *env,
 
 	ENTER( "RXTXPort:setDSR()" );
 	ioctl( fd, TIOCMGET, &result );
-	
+
 	sprintf( message, "setDSR( %i )\n", state );
 	if( state == JNI_TRUE ) result |= TIOCM_DSR;
 	else result &= ~TIOCM_DSR;
@@ -1951,9 +2060,9 @@ RXTXPort.nativeSetBaudBase
    accept:      The Baud Base for custom speeds
    perform:     set the Baud Base
    return:      0 on success
-   exceptions:  Unsupported Comm Operation on systems not supporting 
+   exceptions:  Unsupported Comm Operation on systems not supporting
                 TIOCGSERIAL
-   comments:    
+   comments:
 		Set baud rate to 38400 before using this
 		First introduced in rxtx-2.1-3
 ----------------------------------------------------------*/
@@ -1997,11 +2106,11 @@ fail:
 RXTXPort.nativeGetBaudBase
 
    accept:      the Baud Base used for custom speeds
-   perform:     
+   perform:
    return:      Baud Base
-   exceptions:  Unsupported Comm Operation on systems not supporting 
+   exceptions:  Unsupported Comm Operation on systems not supporting
                 TIOCGSERIAL
-   comments:    
+   comments:
 		First introduced in rxtx-2.1-3
 ----------------------------------------------------------*/
 JNIEXPORT jint JNICALL RXTXPort(nativeGetBaudBase)(
@@ -2037,9 +2146,9 @@ RXTXPort.nativeSetDivisor
    accept:      Divisor for custom speeds
    perform:     set the Divisor for custom speeds
    return:      0 on success
-   exceptions:  Unsupported Comm Operation on systems not supporting 
+   exceptions:  Unsupported Comm Operation on systems not supporting
                 TIOCGSERIAL
-   comments:    
+   comments:
 		Set baud rate to 38400 before using this
 		First introduced in rxtx-2.1-3
 ----------------------------------------------------------*/
@@ -2085,7 +2194,7 @@ RXTXPort.nativeGetDivisor
    return:      Divisor negative value on error.
    exceptions:  Unsupported Comm Operation on systems not supporting
 	        TIOCGSERIAL
-   comments:    
+   comments:
 		First introduced in rxtx-2.1-3
 ----------------------------------------------------------*/
 JNIEXPORT jint JNICALL RXTXPort(nativeGetDivisor)(
@@ -2148,7 +2257,7 @@ JNIEXPORT jboolean JNICALL RXTXPort(nativeStaticSetDSR) (JNIEnv *env,
 	/* Open and lock the port so nothing else changes the setting */
 
 	if ( LOCK( filename, pid ) ) goto fail;
-	
+
 	fd = find_preopened_ports( filename );
 	if( !fd )
 	{
@@ -2171,7 +2280,7 @@ JNIEXPORT jboolean JNICALL RXTXPort(nativeStaticSetDSR) (JNIEnv *env,
 	UNLOCK( filename,  pid );
 
 	static_add_filename( filename, fd );
-	
+
 	/* dont close the port.  Its not clear if the DSR would remain high */
 	(*env)->ReleaseStringUTFChars( env, jstr, filename );
 	LEAVE( "RXTXPort:nativeStaticSetDSR" );
@@ -2214,7 +2323,7 @@ JNIEXPORT jboolean JNICALL RXTXPort(nativeStaticSetRTS) (JNIEnv *env,
 	/* Open and lock the port so nothing else changes the setting */
 
 	if ( LOCK( filename, pid ) ) goto fail;;
-	
+
 	fd = find_preopened_ports( filename );
 	if( !fd )
 	{
@@ -2237,7 +2346,7 @@ JNIEXPORT jboolean JNICALL RXTXPort(nativeStaticSetRTS) (JNIEnv *env,
 	UNLOCK( filename,  pid );
 
 	static_add_filename( filename, fd );
-	
+
 	/* dont close the port.  Its not clear if the RTS would remain high */
 	(*env)->ReleaseStringUTFChars( env, jstr, filename );
 	LEAVE( "RXTXPort:nativeStaticSetRTS" );
@@ -2280,7 +2389,7 @@ JNIEXPORT void JNICALL RXTXPort(nativeStaticSetSerialPortParams) (JNIEnv *env,
 	/* Open and lock the port so nothing else changes the setting */
 
 	if ( LOCK( filename, pid ) ) goto fail;
-	
+
 	fd = find_preopened_ports( filename );
 	if( !fd )
 	{
@@ -2364,7 +2473,7 @@ JNIEXPORT jboolean JNICALL RXTXPort(nativeStaticSetDTR) (JNIEnv *env,
 	/* Open and lock the port so nothing else changes the setting */
 
 	if ( LOCK( filename, pid ) ) goto fail;;
-	
+
 	fd = find_preopened_ports( filename );
 	if( !fd )
 	{
@@ -2439,7 +2548,7 @@ RXTXPort.nativeStaticIsDSR
    return:      true if TIOCM_DSR is set
                 false if TIOCM_DSR is not set
    exceptions:  none
-   comments:    
+   comments:
 ----------------------------------------------------------*/
 JNIEXPORT jboolean JNICALL RXTXPort(nativeStaticIsDSR)( JNIEnv *env,
 	jobject jobj, jstring jstr )
@@ -2597,7 +2706,7 @@ RXTXPort.nativeStaticGetBaudRate
    accept:      filename
    perform:     find the baud rate (not all buads are handled yet)
    return:      return the baud rate or -1 if not supported yet.
-   exceptions:  
+   exceptions:
    comments:    simple test for preopened ports
 ----------------------------------------------------------*/
 JNIEXPORT jint JNICALL RXTXPort(nativeStaticGetBaudRate)( JNIEnv *env, jobject jobj, jstring jstr )
@@ -2649,7 +2758,7 @@ RXTXPort.nativeStaticGetDataBits
    accept:      filename
    perform:     find the data bits (not all buads are handled yet)
    return:      return the data bits
-   exceptions:  
+   exceptions:
    comments:    simple test for preopened ports
 ----------------------------------------------------------*/
 JNIEXPORT jint JNICALL RXTXPort(nativeStaticGetDataBits)( JNIEnv *env, jobject jobj, jstring jstr )
@@ -2684,7 +2793,7 @@ RXTXPort.nativeStaticGetParity
    accept:      filename
    perform:     find the parity
    return:      return the parity
-   exceptions:  
+   exceptions:
    comments:    simple test for preopened ports
 ----------------------------------------------------------*/
 JNIEXPORT jint JNICALL RXTXPort(nativeStaticGetParity)( JNIEnv *env, jobject jobj, jstring jstr )
@@ -2724,9 +2833,9 @@ JNIEXPORT jint JNICALL RXTXPort(nativeStaticGetParity)( JNIEnv *env, jobject job
 RXTXPort.nativeStaticGetStopBits
 
    accept:      filename
-   perform:     find the stop bits 
+   perform:     find the stop bits
    return:      return the stop bits
-   exceptions:  
+   exceptions:
    comments:    simple test for preopened ports
 ----------------------------------------------------------*/
 JNIEXPORT jint JNICALL RXTXPort(nativeStaticGetStopBits)( JNIEnv *env, jobject jobj, jstring jstr )
@@ -2748,9 +2857,17 @@ JNIEXPORT jint JNICALL RXTXPort(nativeStaticGetStopBits)( JNIEnv *env, jobject j
 		return(-1);
 	}
 	switch( ttyset.c_cflag&(CSTOPB) ) {
-		case 0: return STOPBITS_1;
-		case CSTOPB:  return STOPBITS_2;
-		default:  return  STOPBITS_1_5;
+		case 0:
+			return STOPBITS_1;
+		case CSTOPB:
+			if( ttyset.c_cflag & CS5 ) {
+				return STOPBITS_1_5;
+			}
+			else {
+				return STOPBITS_2;
+			}
+		default:
+			return  -1;
 	}
 }
 
@@ -2796,7 +2913,7 @@ RXTXPort.nativeGetEndOfInputChar
    perform:     check the EndOf InputChar
    return:      the EndOfInputChar as an jbyte.  -1 on error
    exceptions:  UnsupportedCommOperationException if not implemented
-   comments:    
+   comments:
 ----------------------------------------------------------*/
 JNIEXPORT jbyte JNICALL RXTXPort(nativeGetEndOfInputChar)( JNIEnv *env,
 	jobject jobj )
@@ -2921,7 +3038,7 @@ read_byte_array
                 >0 number of bytes read
    comments:    According to the Communications API spec, a receive threshold
                 of 1 is the same as having the threshold disabled.
-		
+
 		The nuts and bolts are documented in
 		NativeEnableReceiveTimeoutThreshold()
 ----------------------------------------------------------*/
@@ -2941,8 +3058,8 @@ int read_byte_array( JNIEnv *env,
 	/* TRENT */
 	int flag, count = 0;
 	struct event_info_struct *eis = ( struct event_info_struct * )
-		get_java_var( env, *jobj,"eis","J" );
-	
+		get_java_var_long( env, *jobj,"eis","J" );
+
 	report_time_start();
 	flag = eis->eventflags[SPE_DATA_AVAILABLE];
 	eis->eventflags[SPE_DATA_AVAILABLE] = 0;
@@ -2979,7 +3096,9 @@ int read_byte_array( JNIEnv *env,
 		}
 		/* FIXME HERE Trent */
 #ifndef WIN32
-		ret = SELECT( fd + 1, &rset, NULL, NULL, tvP );
+		do {
+			ret = SELECT( fd + 1, &rset, NULL, NULL, tvP );
+		} while (ret < 0 && errno==EINTR);
 #else
 		ret = 1;
 #endif /* WIN32 */
@@ -3006,7 +3125,7 @@ int read_byte_array( JNIEnv *env,
 				left -= ret;
 			}
 		/*
-		The only thing that is bugging me with the new 
+		The only thing that is bugging me with the new
 		version is the CPU usage when reading on the serial port.  I
 		looked at it today and find a quick fix.  It doesn't seems to
 		affect the performance for our apps (I mean in a negative way,
@@ -3040,7 +3159,7 @@ int read_byte_array( JNIEnv *env,
 
 #ifdef asdf
 int read_byte_array(	JNIEnv *env,
-			jobject *jobj,	
+			jobject *jobj,
 			int fd,
 			unsigned char *buffer,
 			int length,
@@ -3084,7 +3203,7 @@ RETRY:	if ((ret = READ( fd, buffer + bytes, left )) < 0 )
 
 
 int read_byte_array(	JNIEnv *env,
-			jobject *jobj,	
+			jobject *jobj,
 			int fd,
 			unsigned char *buffer,
 			int length,
@@ -3095,7 +3214,7 @@ int read_byte_array(	JNIEnv *env,
 	fd_set rfds;
 	struct timeval sleep;
 	struct event_info_struct *eis = find_eis( fd );
-	
+
 #ifndef WIN32
 	struct timeval *psleep=&sleep;
 #endif /* WIN32 */
@@ -3179,7 +3298,7 @@ JNIEXPORT void JNICALL RXTXPort(NativeEnableReceiveTimeoutThreshold)(
 	int timeout;
 
 	if (vtime < 0){
-		timeout = 0; 
+		timeout = 0;
 	}
 	else if (vtime == 0){
 		timeout = 1;
@@ -3190,8 +3309,7 @@ JNIEXPORT void JNICALL RXTXPort(NativeEnableReceiveTimeoutThreshold)(
 
 	ENTER( "RXTXPort:NativeEnableRecieveTimeoutThreshold" );
 	if( tcgetattr( fd, &ttyset ) < 0 ) goto fail;
-	/* TESTING ttyset.c_cc[ VMIN ] = threshold; */
-	ttyset.c_cc[ VMIN ] = 0;
+	ttyset.c_cc[ VMIN ] = threshold;
 	ttyset.c_cc[ VTIME ] = timeout/100;
 	if( tcsetattr( fd, TCSANOW, &ttyset ) < 0 ) goto fail;
 
@@ -3216,13 +3334,13 @@ RXTXPort.readByte
 
 On Fri, 30 Aug 2002, Bill Smith wrote:
 
-I agree, the documentation isn't the best. No surprises there. 
+I agree, the documentation isn't the best. No surprises there.
 
-I did do a test using the sun/win32 comm driver with read() and retrieve 
-timeout enabled. It blocked until the timeout expired, then returned a -1. 
-This seems to jive with the way I'm reading it which is the javax.comm 
+I did do a test using the sun/win32 comm driver with read() and retrieve
+timeout enabled. It blocked until the timeout expired, then returned a -1.
+This seems to jive with the way I'm reading it which is the javax.comm
 comments regarding read (in the CommPort.getInputStream stuff)
-extends/overrides 
+extends/overrides
 the documentation for java.io.InputStream.
 
 This is the same behavior that the Windriver driver for vxworks exhibits.
@@ -3230,38 +3348,38 @@ This is the same behavior that the Windriver driver for vxworks exhibits.
 On Fri, 30 Aug 2002, Bill Smith wrote:
 
 > Hi Trent,
-> 
+>
 > I have a couple of questions/comments.
-> 
+>
 > 1) I noticed in the thread last night and in the code changes this morning that you
 >    now have readByte() (which is called from the input stream read(), to block
 >    forever. I pulled the following info from the javax.comm doc for the CommPort class in
 >    getInputStream().
-> 
+>
 >    The way I interpret that is that read() just like read(byte[]), and read(byte[], int, int),
->    show only block indefinitely if timeout is disabled. The sun implementation for win32 (as 
+>    show only block indefinitely if timeout is disabled. The sun implementation for win32 (as
 >    well as the one we have for vxworks) returns a -1 when it times out.
-> 
+>
 
-Doing what Sun does is going to the least hassle.  The documentation was a 
-little unclear to me.  I assume this is the CommPort.getInputStream 
-comment that you mention 
+Doing what Sun does is going to the least hassle.  The documentation was a
+little unclear to me.  I assume this is the CommPort.getInputStream
+comment that you mention
 
         The read behaviour of the input stream returned by getInputStream
         depends on combination of the threshold and timeout values. The
-        possible behaviours are described in the table below: ... 
+        possible behaviours are described in the table below: ...
 
 But InputStream is where read(byte) is documented
 http://java.sun.com/j2se/1.3/docs/api/java/io/InputStream.html#read()
 
         Reads the next byte of data from the input stream. The value byte
         is returned as an int in the range 0 to 255. If no byte is
-        available because the end of the stream has been reached, the value 
+        available because the end of the stream has been reached, the value
         -1 is returned. This method blocks until input data is
-        available, the end of the stream is detected, or an exception is 
+        available, the end of the stream is detected, or an exception is
         thrown
 
-If you are sure commapi is doing a timeout and returning -1, I can change 
+If you are sure commapi is doing a timeout and returning -1, I can change
 it back and document the issue.
 
 Because I often grep my own mailbox for details, I'm going to add
@@ -3271,16 +3389,16 @@ these two comments also:
 )
 http://java.sun.com/j2se/1.3/docs/api/java/io/InputStream.html#read(byte[])
 
-        Reads some number of bytes from the input stream and stores them 
-        into the buffer array b. The number of bytes actually read is 
+        Reads some number of bytes from the input stream and stores them
+        into the buffer array b. The number of bytes actually read is
         returned as an integer. This method blocks until input data is
-        available, end of file is detected, or an exception is thrown. 
+        available, end of file is detected, or an exception is thrown.
 
-        If b is null, a NullPointerException is thrown. If the length of b 
-        is zero, then no bytes are read and 0 is returned; otherwise, 
-        there is an attempt to read at least one byte. If no byte is 
-        available because the stream is at end of file, the value -1 is 
-        returned; otherwise, at least one byte is read and stored into b. 
+        If b is null, a NullPointerException is thrown. If the length of b
+        is zero, then no bytes are read and 0 is returned; otherwise,
+        there is an attempt to read at least one byte. If no byte is
+        available because the stream is at end of file, the value -1 is
+        returned; otherwise, at least one byte is read and stored into b.
 
 So read(byte[] b) is documented as blocking for the first byte.
 
@@ -3288,52 +3406,52 @@ public int read(byte[] b,int off,int len)
 http://java.sun.com/j2se/1.3/docs/api/java/io/InputStream.html#read(byte[],
 int, int)
 
-        Reads up to len bytes of data from the input stream into an array of 
-        bytes. An attempt is made to read as many as len bytes, but a 
-        smaller number may be read, possibly zero. The number of bytes 
-        actually read is returned as an integer. 
+        Reads up to len bytes of data from the input stream into an array of
+        bytes. An attempt is made to read as many as len bytes, but a
+        smaller number may be read, possibly zero. The number of bytes
+        actually read is returned as an integer.
 
 Which makes sense with the timeout documentation.
 
-<snip>threshold comment  I'll look at that next.  I thought those changes 
+<snip>threshold comment  I'll look at that next.  I thought those changes
 where in the ifdefed code.  I'll take a second look and reply.
 
-> 
+>
 > Thoughts? Comments?
-> 
+>
 > Bill
-> 
+>
 > ----------------------
-> 
+>
 > public abstract InputStream getInputStream() throws IOException
-> 
-> 
+>
+>
 > Returns an input stream. This is the only way to receive data from the
 communications
-> port. If the port is unidirectional and doesn't support receiving data, then 
+> port. If the port is unidirectional and doesn't support receiving data, then
 > getInputStream returns null.
-> 
-> The read behaviour of the input stream returned by getInputStream depends on 
-> combination of the threshold and timeout values. The possible behaviours are 
-> described in the table below: 
-> 
-> 
+>
+> The read behaviour of the input stream returned by getInputStream depends on
+> combination of the threshold and timeout values. The possible behaviours are
+> described in the table below:
+>
+>
 >    Threshold             Timeout        Read Buffer    Read Behaviour
-> State     Value       State     Value       Size   
+> State     Value       State     Value       Size
 >
 -----------------------------------------------------------------------------------
 > disabled    -         disabled    -       n bytes      block until any data is available
-> 
+>
 > enabled   m bytes     disabled    -       n bytes      block until min(m,n) bytes are available
-> 
+>
 > disabled    -         enabled   x ms      n bytes      block for x ms or
 until any data is available
-> 
+>
 > enabled   m bytes     enabled   x ms      n bytes      block for x ms or
 until min(m,n) bytes are available
-> 
-> Returns: InputStream object that can be used to read from the port 
-> 
+>
+> Returns: InputStream object that can be used to read from the port
+>
 > Throws: IOException if an I/O error occurred
 
 
@@ -3490,9 +3608,9 @@ JNIEXPORT jint JNICALL RXTXPort(readTerminatedArray)( JNIEnv *env,
 		)
 		{
 			report("Got terminator!\n" );
-			break;		
+			break;
 		}
-			
+
 	} while ( bytes > 0 && total < length );
 	(*env)->ReleaseByteArrayElements( env, jbarray, body, 0 );
 /*
@@ -3587,7 +3705,7 @@ JNIEXPORT void JNICALL RXTXPort(setflowcontrol)( JNIEnv *env,
 
 	ENTER( "RXTXPort:setflowcontrol" );
 	if( tcgetattr( fd, &ttyset ) ) goto fail;
-	
+
 	if ( flowmode & ( FLOWCONTROL_RTSCTS_IN | FLOWCONTROL_RTSCTS_OUT ) )
 	{
 		ttyset.c_cflag |= HARDWARE_FLOW_CONTROL;
@@ -3604,7 +3722,7 @@ JNIEXPORT void JNICALL RXTXPort(setflowcontrol)( JNIEnv *env,
 
 	if ( flowmode & FLOWCONTROL_XONXOFF_OUT )
 	{
-		
+
 		ttyset.c_iflag |= IXON;
 	}
 	else ttyset.c_iflag &= ~IXON;
@@ -3678,7 +3796,7 @@ int check_line_status_register( struct event_info_struct *eis )
 /*
 	printf("test %i\n",  eis->output_buffer_empty_flag );
 */
-	if( eis && eis->output_buffer_empty_flag == 1 && 
+	if( eis && eis->output_buffer_empty_flag == 1 &&
 		eis->eventflags[SPE_OUTPUT_BUFFER_EMPTY] )
 	{
 		report_verbose("check_line_status_register: sending SPE_OUTPUT_BUFFER_EMPTY\n");
@@ -3700,7 +3818,7 @@ has_line_status_register_access
    return:      0 if not available
    exceptions:  none
    comments:    not supported on all devices/drivers.
-		JK00: work around for multiport cards without TIOCSERGETLSR 
+		JK00: work around for multiport cards without TIOCSERGETLSR
 		Cyclades is one of those :-(
 ----------------------------------------------------------*/
 int has_line_status_register_access( int fd )
@@ -3773,7 +3891,7 @@ port_has_changed_fionread
    perform:     check if FIONREAD has changed
    return:      0 if no data available
    exceptions:  none
-   comments:    
+   comments:
 ----------------------------------------------------------*/
 int port_has_changed_fionread( struct event_info_struct *eis )
 {
@@ -3789,7 +3907,7 @@ int port_has_changed_fionread( struct event_info_struct *eis )
 
 	   This is true for Solaris, also.  taj.
 	*/
-	if( (rc != -1 && change) || (rc == -1 && eis->ret > 0) ) 
+	if( (rc != -1 && change) || (rc == -1 && eis->ret > 0) )
 		return( 1 );
 #else
 	sprintf( message, "port_has_changed_fionread: change is %i\n", change );
@@ -3799,7 +3917,7 @@ int port_has_changed_fionread( struct event_info_struct *eis )
 #endif /* __unixware__  || __sun__ */
 	return( 0 );
 }
-		
+
 /*----------------------------------------------------------
 check_tiocmget_changes
 
@@ -3850,11 +3968,11 @@ void check_tiocmget_changes( struct event_info_struct * eis )
 /*----------------------------------------------------------
 system_wait
 
-   accept:      
-   perform:     
-   return:      
+   accept:
+   perform:
+   return:
    exceptions:  none
-   comments:    
+   comments:
 ----------------------------------------------------------*/
 void system_wait()
 {
@@ -3888,7 +4006,7 @@ driver_has_tiocgicount
    return:      0 if not available
    exceptions:  none
    comments:    not supported on all devices/drivers.
-		Some multiport serial cards do not implement TIOCGICOUNT ... 
+		Some multiport serial cards do not implement TIOCGICOUNT ...
 		So use the 'dumb' mode to enable using them after all! JK00
 ----------------------------------------------------------*/
 int driver_has_tiocgicount( struct event_info_struct * eis )
@@ -3906,7 +4024,7 @@ int driver_has_tiocgicount( struct event_info_struct * eis )
 		return(1);
 #endif /*  TIOCGICOUNT */
 	return(0);
-	
+
 }
 
 /*----------------------------------------------------------
@@ -3966,7 +4084,7 @@ initialise_event_info_struct
    perform:     initialise or reset the event_info_struct
    return:      1 on success
    exceptions:  none
-   comments:    
+   comments:
 ----------------------------------------------------------*/
 int initialise_event_info_struct( struct event_info_struct *eis )
 {
@@ -4039,7 +4157,7 @@ finalize_event_info_struct
    perform:     free resources
    return:      none
    exceptions:  none
-   comments:    
+   comments:
 ----------------------------------------------------------*/
 void finalize_event_info_struct( struct event_info_struct *eis )
 {
@@ -4047,7 +4165,7 @@ void finalize_event_info_struct( struct event_info_struct *eis )
 	{
 		(*eis->env)->DeleteLocalRef( eis->env, eis->jclazz );
 	}
-	if( eis->next && eis->prev ) 
+	if( eis->next && eis->prev )
 	{
 		eis->prev->next = eis->next;
 		eis->next->prev = eis->prev;
@@ -4100,8 +4218,10 @@ JNIEXPORT void JNICALL RXTXPort(eventLoop)( JNIEnv *env, jobject jobj )
 			}
 #ifndef WIN32
 			/* report( "." ); */
-			eis.ret = SELECT( eis.fd + 1, &eis.rfds, NULL, NULL,
+			do {
+				eis.ret = SELECT( eis.fd + 1, &eis.rfds, NULL, NULL,
 					&eis.tv_sleep );
+			} while (eis.ret < 0 && errno==EINTR);
 #else
 			/*
 			    termios.c:serial_select is instable for some
@@ -4141,19 +4261,19 @@ end:
 RXTXVersion.nativeGetVersion
 
    accept:      none
-   perform:     return the current version 
+   perform:     return the current version
    return:      version
    exceptions:  none
    comments:    This is used to avoid mixing versions of the .jar and
 		native library.
 		First introduced in rxtx-1.5-9
                 Moved from RXTXCommDriver to RXTXVersion in rxtx-2.1-7
-		
+
 ----------------------------------------------------------*/
 JNIEXPORT jstring JNICALL RXTXVersion(nativeGetVersion) (JNIEnv *env,
 	jclass jclazz )
 {
-	return (*env)->NewStringUTF( env, "RXTX-2.1-7" );
+	return (*env)->NewStringUTF( env, "RXTX-2.2pre2" );
 }
 
 /*----------------------------------------------------------
@@ -4214,7 +4334,7 @@ JNIEXPORT jboolean  JNICALL RXTXCommDriver(testRead)(
 	return(ret);
 #endif /* WIN32 */
 
-	/* 
+	/*
 		LOCK is one of three functions defined in SerialImp.h
 
 			uucp_lock		Solaris
@@ -4292,9 +4412,9 @@ JNIEXPORT jboolean  JNICALL RXTXCommDriver(testRead)(
               man 2 open
               O_NONBLOCK or O_NDELAY
               When  possible,  the file is opened in non-blocking
-              mode. Neither the open nor  any  subsequent  opera­
+              mode. Neither the open nor  any  subsequent  operaï¿½
               tions on the file descriptor which is returned will
-              cause the calling process to wait.   For  the  han­
+              cause the calling process to wait.   For  the  hanï¿½
               dling  of  FIFOs  (named  pipes), see also fifo(4).
               This mode need not have any effect on  files  other
               than FIFOs.
@@ -4340,10 +4460,10 @@ JNIEXPORT jboolean  JNICALL RXTXCommDriver(testRead)(
 
 Steven's book.  Advanced programming in the Unix Environment pg 364
 
-"A common use for nonblocking I/O is for dealing with a terminal device 
+"A common use for nonblocking I/O is for dealing with a terminal device
 for a network connection and these devices are normally used by one process
-at a time.  This means that the change in the BSD semantics normally does 't 
-effect us.  The different error return, EWOULDBLOCK, instead of POSIX.1 
+at a time.  This means that the change in the BSD semantics normally does 't
+effect us.  The different error return, EWOULDBLOCK, instead of POSIX.1
 EAGAIN, continues to be a portability difference that we must deal with."
 
 */
@@ -4355,7 +4475,7 @@ EAGAIN, continues to be a portability difference that we must deal with."
 				report( "testRead() read failed\n" );
 				ret = JNI_FALSE;
 			}
-#else                      
+#else
 #ifdef EWOULDBLOCK
 			if ( errno != EWOULDBLOCK )
 			{
@@ -4373,7 +4493,7 @@ EAGAIN, continues to be a portability difference that we must deal with."
 		fcntl( fd, F_SETFL, saved_flags );
 	}
 
-	/* 
+	/*
 		UNLOCK is one of three functions defined in SerialImp.h
 
 			uucp_unlock		Solaris
@@ -4392,10 +4512,10 @@ END:
 #if defined(__APPLE__)
 /*----------------------------------------------------------
  createSerialIterator()
-   accept:      
-   perform:     
-   return:      
-   exceptions:  
+   accept:
+   perform:
+   return:
+   exceptions:
    comments:
 		Code courtesy of Eric Welch at Keyspan, except for the bugs
 		which are courtesy of Joseph Goldstone (joseph@lp.com)
@@ -4407,7 +4527,7 @@ createSerialIterator(io_iterator_t *serialIterator)
     kern_return_t    kernResult;
     mach_port_t        masterPort;
     CFMutableDictionaryRef    classesToMatch;
-    if ((kernResult=IOMasterPort(NULL, &masterPort)) != KERN_SUCCESS)
+    if ((kernResult=IOMasterPort( (int) NULL, &masterPort ) ) != KERN_SUCCESS)
     {
 	printf( "IOMasterPort returned %d\n", kernResult);
 	return kernResult;
@@ -4429,10 +4549,10 @@ createSerialIterator(io_iterator_t *serialIterator)
 /*----------------------------------------------------------
  getRegistryString()
 
-   accept:      
-   perform:     
-   return:      
-   exceptions:  
+   accept:
+   perform:
+   return:
+   exceptions:
    comments:
 		Code courtesy of Eric Welch at Keyspan, except for the bugs
 		which are courtesy of Joseph Goldstone (joseph@lp.com)
@@ -4456,10 +4576,10 @@ getRegistryString(io_object_t sObj, char *propName)
 
 /*----------------------------------------------------------
  registerKnownSerialPorts()
-   accept:      
-   perform:     
-   return:      
-   exceptions:  
+   accept:
+   perform:
+   return:
+   exceptions:
    comments:
 ----------------------------------------------------------*/
 int
@@ -4468,9 +4588,13 @@ registerKnownSerialPorts(JNIEnv *env, jobject jobj, jint portType) /* dima */
     io_iterator_t    theSerialIterator;
     io_object_t      theObject;
     int              numPorts = 0;/* dima it should initiated */
-    if (createSerialIterator(&theSerialIterator) != KERN_SUCCESS)
+
+    if (( createSerialIterator( &theSerialIterator ) != KERN_SUCCESS) ||
+        ( ! IOIteratorIsValid( theSerialIterator)))
     {
-        printf( "createSerialIterator failed\n" );
+	/*  This also happens when no drivers are installed */
+        report( "createSerialIterator failed\n" );
+	return(0);
     } else {
 	jclass cls; /* dima */
 	jmethodID mid; /* dima */
@@ -4527,7 +4651,7 @@ JNIEXPORT jboolean JNICALL RXTXCommDriver(registerKnownPorts)(JNIEnv *env,
 
 	switch(portType) {
 		case PORT_TYPE_SERIAL:
-#if defined(__APPLE__)
+#if 0 && defined(__APPLE__) // disabled special treatment, OL
 			if (registerKnownSerialPorts(env, jobj,
 				PORT_TYPE_SERIAL) > 0) {/* dima */
 				result = JNI_TRUE;
@@ -4548,7 +4672,7 @@ JNIEXPORT jboolean JNICALL RXTXCommDriver(registerKnownPorts)(JNIEnv *env,
 	}
 	return result;
 }
-    
+
 /*----------------------------------------------------------
  isPortPrefixValid
 
@@ -4574,7 +4698,7 @@ JNIEXPORT jboolean  JNICALL RXTXCommDriver(isPortPrefixValid)(JNIEnv *env,
 		if( i > 25 ) break;
 		sprintf(teststring,"%s%s%c",DEVICEDIR, name, i + 97 );
 		fprintf(stderr, "testing: %s\n", teststring);
-#else 
+#else
 #if defined(_GNU_SOURCE)
 		snprintf(teststring, 256, "%s%s%i",DEVICEDIR,name, i);
 #else
@@ -4621,10 +4745,10 @@ JNIEXPORT jboolean  JNICALL RXTXCommDriver(isPortPrefixValid)(JNIEnv *env,
 /*----------------------------------------------------------
  getDeviceDirectory
 
-   accept:      
-   perform:     
+   accept:
+   perform:
    return:      the directory containing the device files
-   exceptions:  
+   exceptions:
    comments:    use this to avoid hard coded "/dev/"
    		values are in SerialImp.h
 ----------------------------------------------------------*/
@@ -4640,8 +4764,8 @@ JNIEXPORT jstring  JNICALL RXTXCommDriver(getDeviceDirectory)(JNIEnv *env,
 /*----------------------------------------------------------
  setInputBufferSize
 
-   accept:      
-   perform:     
+   accept:
+   perform:
    return:      none
    exceptions:  none
    comments:    see fopen/fclose/fwrite/fread man pages.
@@ -4655,8 +4779,8 @@ JNIEXPORT void JNICALL RXTXPort(setInputBufferSize)(JNIEnv *env,
 /*----------------------------------------------------------
  getIputBufferSize
 
-   accept:      
-   perform:     
+   accept:
+   perform:
    return:      none
    exceptions:  none
    comments:    see fopen/fclose/fwrite/fread man pages.
@@ -4671,8 +4795,8 @@ JNIEXPORT jint JNICALL RXTXPort(getInputBufferSize)(JNIEnv *env,
 /*----------------------------------------------------------
  setOutputBufferSize
 
-   accept:      
-   perform:     
+   accept:
+   perform:
    return:      none
    exceptions:  none
    comments:    see fopen/fclose/fwrite/fread man pages.
@@ -4686,8 +4810,8 @@ JNIEXPORT void JNICALL RXTXPort(setOutputBufferSize)(JNIEnv *env,
 /*----------------------------------------------------------
  getOutputBufferSize
 
-   accept:      
-   perform:     
+   accept:
+   perform:
    return:      none
    exceptions:  none
    comments:    see fopen/fclose/fwrite/fread man pages.
@@ -4703,7 +4827,7 @@ JNIEXPORT jint JNICALL RXTXPort(getOutputBufferSize)(JNIEnv *env,
  interruptEventLoop
 
    accept:      nothing
-   perform:     increment eventloop_interrupted 
+   perform:     increment eventloop_interrupted
    return:      nothing
    exceptions:  none
    comments:    all eventloops in this PID will check if their thread
@@ -4751,6 +4875,24 @@ JNIEXPORT void JNICALL RXTXPort(interruptEventLoop)(JNIEnv *env,
 #ifdef WIN32
 	termios_interrupt_event_loop( index->fd, 1 );
 #endif /* WIN32 */
+#if !defined(TIOCSERGETLSR) && !defined(WIN32)
+	/* make sure that the drainloop unblocks from tcdrain */
+	pthread_kill(index->drain_tid, SIGABRT);
+	/* TODO use wait/join/SIGCHLD/?? instead of sleep? */
+	usleep(50 * 1000);
+	/*
+	Under normal conditions, SIGABRT will unblock tcdrain. However
+	a non-responding USB device combined with an unclean driver
+	may still block. This is very ugly because it may block the call
+	to close indefinetly.
+	*/
+	if (index->closing != 1) {
+		/* good bye tcdrain, and thanks for all the fish */
+		report("interruptEventLoop: canceling blocked drain thread\n");
+		pthread_cancel(index->drain_tid);
+		index->closing = 1;
+	}
+#endif
 	report("interruptEventLoop: interrupted\n");
 }
 
@@ -4818,7 +4960,7 @@ JNIEXPORT void JNICALL RXTXPort(nativeSetEventFlag)( JNIEnv *env,
 #ifdef WIN32
 	termios_setflags( fd, index->eventflags );
 #endif /* win32 */
-	
+
 }
 
 /*----------------------------------------------------------
@@ -4875,9 +5017,13 @@ get_java_var
    exceptions:  none
    comments:
 ----------------------------------------------------------*/
-size_t get_java_var( JNIEnv *env, jobject jobj, char *id, char *type )
+size_t get_java_var( JNIEnv *env, jobject jobj, char *id, char *type ) {
+  return (size_t) get_java_var_long( env, jobj, id, type );
+}
+
+long get_java_var_long( JNIEnv *env, jobject jobj, char *id, char *type )
 {
-	int result = 0;
+	long result = 0;
 	jclass jclazz = (*env)->GetObjectClass( env, jobj );
 	jfieldID jfd = (*env)->GetFieldID( env, jclazz, id, type );
 
@@ -4891,7 +5037,11 @@ size_t get_java_var( JNIEnv *env, jobject jobj, char *id, char *type )
 		LEAVE( "get_java_var" );
 		return result;
 	}
-	result = (int)( (*env)->GetIntField( env, jobj, jfd ) );
+	if ( !strcmp( type, "J" ) ) {
+	  result = (long)( (*env)->GetLongField( env, jobj, jfd ) );
+	} else {
+	  result = (size_t) ( (*env)->GetIntField( env, jobj, jfd ) );
+	}
 /* ct7 & gel * Added DeleteLocalRef */
 	(*env)->DeleteLocalRef( env, jclazz );
 	if(!strncmp( "fd",id,2) && result == 0)
@@ -4918,7 +5068,7 @@ void throw_java_exception( JNIEnv *env, char *exc, char *foo, char *msg )
 {
 	char buf[ 60 ];
 	jclass clazz = (*env)->FindClass( env, exc );
-	ENTER( "throw_java_exception" );	
+	ENTER( "throw_java_exception" );
 	if( !clazz ) {
 		(*env)->ExceptionDescribe( env );
 		(*env)->ExceptionClear( env );
@@ -5021,7 +5171,7 @@ void report(char *msg)
                 lock file server.
    return:      1 on failure 0 on success
    exceptions:  none
-   comments:    
+   comments:
 
 ----------------------------------------------------------*/
 int lfs_lock( const char *filename, int pid )
@@ -5037,7 +5187,7 @@ int lfs_lock( const char *filename, int pid )
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons( 50001 );
 	addr.sin_addr.s_addr = inet_addr( "127.0.0.1" );
-   
+
 	if ( !connect( s, ( struct sockaddr * ) &addr, sizeof( addr ) ) == 0 )
 		return 1;
 	ret=recv( s, buffer, size, 0 );
@@ -5065,7 +5215,7 @@ int lfs_lock( const char *filename, int pid )
                 lock file server.
    return:      1 on failure 0 on success
    exceptions:  none
-   comments:    
+   comments:
 
 ----------------------------------------------------------*/
 int lfs_unlock( const char *filename, int pid )
@@ -5081,7 +5231,7 @@ int lfs_unlock( const char *filename, int pid )
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons( 50001 );
 	addr.sin_addr.s_addr = inet_addr( "127.0.0.1" );
-   
+
 	if ( !connect( s, ( struct sockaddr * ) &addr, sizeof( addr ) ) == 0 )
 		return 1;
 	sprintf( buffer, "unlock %s %i\n", filename, pid );
@@ -5193,7 +5343,7 @@ int fhs_lock( const char *filename, int pid )
 
 	j = strlen( filename );
 	p = ( char * ) filename + j;
-	/*  FIXME  need to handle subdirectories /dev/cua/... 
+	/*  FIXME  need to handle subdirectories /dev/cua/...
 	    SCO Unix use lowercase all the time
 			taj
 	*/
@@ -5230,11 +5380,11 @@ int fhs_lock( const char *filename, int pid )
 /*----------------------------------------------------------
  uucp_lock
 
-   accept:     char * filename.  Device to be locked 
+   accept:     char * filename.  Device to be locked
    perform:    Try to get a uucp_lock
    return:     int 0 on success
-   exceptions: none 
-   comments: 
+   exceptions: none
+   comments:
 		The File System Hierarchy Standard
 		http://www.pathname.com/fhs/
 
@@ -5276,7 +5426,7 @@ int uucp_lock( const char *filename, int pid )
 	int fd;
 	struct stat buf;
 
-	sprintf( message, "uucp_lock( %s );\n", filename ); 
+	sprintf( message, "uucp_lock( %s );\n", filename );
 	report( message );
 
 	if ( check_lock_status( filename ) )
@@ -5332,7 +5482,7 @@ int uucp_lock( const char *filename, int pid )
    perform:     Make sure everything is sane
    return:      0 on success
    exceptions:  none
-   comments:    
+   comments:
 ----------------------------------------------------------*/
 int check_lock_status( const char *filename )
 {
@@ -5358,10 +5508,10 @@ int check_lock_status( const char *filename )
 	if ( is_device_locked( filename ) )
 	{
 		report( "check_lock_status: device is locked by another application\n" );
-		return 1;	
+		return 1;
 	}
 	return 0;
-	
+
 }
 
 /*----------------------------------------------------------
@@ -5400,11 +5550,11 @@ void fhs_unlock( const char *filename, int openpid )
 /*----------------------------------------------------------
  uucp_unlock
 
-   accept:     char *filename the device that is locked      
-   perform:    remove the uucp lockfile if it exists 
-   return:     none 
-   exceptions: none 
-   comments:   http://docs.freebsd.org/info/uucp/uucp.info.UUCP_Lock_Files.html 
+   accept:     char *filename the device that is locked
+   perform:    remove the uucp lockfile if it exists
+   return:     none
+   exceptions: none
+   comments:   http://docs.freebsd.org/info/uucp/uucp.info.UUCP_Lock_Files.html
 ----------------------------------------------------------*/
 void uucp_unlock( const char *filename, int openpid )
 {
@@ -5415,7 +5565,7 @@ void uucp_unlock( const char *filename, int openpid )
 	sprintf( message, "uucp_unlock( %s );\n", filename );
 	report( message );
 
-	if ( stat( filename, &buf ) != 0 ) 
+	if ( stat( filename, &buf ) != 0 )
 	{
 		/* hmm the file is not there? */
 		report( "uucp_unlock() no such device\n" );
@@ -5426,14 +5576,14 @@ void uucp_unlock( const char *filename, int openpid )
 	 	(int) major( buf.st_rdev ),
 		(int) minor( buf.st_rdev )
 	);
-	if ( stat( file, &buf ) != 0 ) 
+	if ( stat( file, &buf ) != 0 )
 	{
 		/* hmm the file is not there? */
 		report( "uucp_unlock no such lockfile\n" );
 		return;
 	}
 	if( !check_lock_pid( file, openpid ) )
-	{ 
+	{
 		sprintf( message, "uucp_unlock: unlinking %s\n", file );
 		report( message );
 		unlink(file);
@@ -5448,11 +5598,11 @@ void uucp_unlock( const char *filename, int openpid )
 /*----------------------------------------------------------
  check_lock_pid
 
-   accept:     the name of the lockfile 
+   accept:     the name of the lockfile
    perform:    make sure the lock file is ours.
    return:     0 on success
    exceptions: none
-   comments:   
+   comments:
 ----------------------------------------------------------*/
 int check_lock_pid( const char *file, int openpid )
 {
@@ -5489,9 +5639,9 @@ int check_lock_pid( const char *file, int openpid )
 
    accept:     none
    perform:    check if the user is root or in group uucp
-   return:     0 on success 
-   exceptions: none 
-   comments:   
+   return:     0 on success
+   exceptions: none
+   comments:
 		This checks if the effective user is in group uucp so we can
 		create lock files.  If not we give them a warning and bail.
 		If its root we just skip the test.
@@ -5527,7 +5677,7 @@ int check_group_uucp()
 	if ( NULL == testLockAbsFileName )
 	{
 		report_error("check_group_uucp(): Insufficient memory");
-		return 1;  
+		return 1;
 	}
 	strcat(testLockAbsFileName, testLockFileDirName);
 	strcat(testLockAbsFileName, "/");
@@ -5551,7 +5701,7 @@ int check_group_uucp()
 	}
 
 	fclose (testLockFile);
-	unlink (testLockAbsFileName);           
+	unlink (testLockAbsFileName);
 	free(testLockAbsFileName);
 
 #endif /* USER_LOCK_DIRECTORY */
@@ -5589,7 +5739,7 @@ int check_group_uucp()
 	{
 		while( group_count >= 0 && buf.st_gid != list[ group_count ] )
 		{
-  			group_count--; 
+  			group_count--;
 		}
 		if( buf.st_gid == list[ group_count ] )
 			return 0;
@@ -5666,7 +5816,7 @@ int is_device_locked( const char *port_filename )
 		"/var/spool/lock", "/var/spool/locks", "/var/spool/uucp",
 		LOCKDIR, NULL
 	};
-	const char *lockprefixes[] = { "LCK..", "lk..", "LK.", NULL }; 
+	const char *lockprefixes[] = { "LCK..", "lk..", "LK.", NULL };
 	char *p, file[80], pid_buffer[20], message[80];
 	int i = 0, j, k, fd , pid;
 	struct stat buf, buf2, lockbuf;
@@ -5745,7 +5895,7 @@ int is_device_locked( const char *port_filename )
 		Lets see if there any stale lock files that need to be
 		removed.
 	*/
-		 
+
 #ifdef FHS
 	/*  FHS standard locks */
 	i = strlen( port_filename );
@@ -5758,7 +5908,7 @@ int is_device_locked( const char *port_filename )
 		p--;
 	}
 	sprintf( file, "%s/%s%s", LOCKDIR, LOCKFILEPREFIX, p );
-#else 
+#else
 	/*  UUCP standard locks */
 	if ( stat( port_filename, &buf ) != 0 )
 	{
@@ -5910,7 +6060,7 @@ JNI_OnLoad
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *java_vm, void *reserved)
 {
 	javaVM = java_vm;
-	printf("Experimental:  JNI_OnLoad called.\n");
+	report_verbose("JNI_OnLoad called.\n");
 	return JNI_VERSION_1_2;  /* JNI API used */
 }
 
@@ -5923,7 +6073,7 @@ JNI_OnUnload
    exceptions:  none
    comments:    http://java.sun.com/j2se/1.4.2/docs/guide/jni/jni-14.html
 		http://java.sun.com/j2se/1.4.2/docs/guide/jni/jni-12.html
-		final library cleanup here.  
+		final library cleanup here.
 ----------------------------------------------------------*/
 JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved)
 {
@@ -5955,7 +6105,7 @@ int printj(JNIEnv *env, wchar_t *fmt, ...)
 	retval = _vsnwprintf(buf, 1024, fmt, ap);
 	va_end(ap);
 	buf[1023] = '\0';
-  
+
 	if((clsSystem = env->FindClass("java/lang/System")) == NULL)
 	{
 		IF_DEBUG
@@ -5965,7 +6115,7 @@ int printj(JNIEnv *env, wchar_t *fmt, ...)
 		env->ExceptionClear();
 		return -1;
 	}
-  
+
 	if( ( jfid = env->GetStaticFieldID(clsSystem,
 		"out", "Ljava/io/PrintStream;" ) ) == NULL )
 	{
@@ -5977,7 +6127,7 @@ int printj(JNIEnv *env, wchar_t *fmt, ...)
 		env->DeleteLocalRef(clsSystem);
 		return -1;
 	}
-  
+
 	objOut = env->GetStaticObjectField(clsSystem, jfid);
 	clsOut = env->GetObjectClass(objOut);
 
@@ -5993,7 +6143,7 @@ int printj(JNIEnv *env, wchar_t *fmt, ...)
 		env->DeleteLocalRef(clsSystem);
 		return -1;
 	}
-  
+
 	jsBuf = env->NewString(buf, wcslen(buf));
 
 	env->CallVoidMethod(objOut, midPrint, jsBuf);
@@ -6001,7 +6151,7 @@ int printj(JNIEnv *env, wchar_t *fmt, ...)
  	env->DeleteLocalRef(jsBuf);
 	env->DeleteLocalRef(clsOut);
 	env->DeleteLocalRef(clsSystem);
-  
+
 	return retval;
 }
 /*
@@ -6010,4 +6160,3 @@ int printj(JNIEnv *env, wchar_t *fmt, ...)
 	(*env)->CallStaticVoidMethod(env, cls, mid, 1);
 */
 #endif /* asdf */
-

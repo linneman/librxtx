@@ -1,25 +1,60 @@
 /*-------------------------------------------------------------------------
-|   rxtx is a native interface to serial ports in java.
-|   Copyright 1997-2004 by Trent Jarvi taj@www.linux.org.uk.
+|   RXTX License v 2.1 - LGPL v 2.1 + Linking Over Controlled Interface.
+|   RXTX is a native interface to serial ports in java.
+|   Copyright 1997-2009 by Trent Jarvi tjarvi@qbang.org and others who
+|   actually wrote it.  See individual source files for more information.
+|
+|   A copy of the LGPL v 2.1 may be found at
+|   http://www.gnu.org/licenses/lgpl.txt on March 4th 2007.  A copy is
+|   here for your convenience.
 |
 |   This library is free software; you can redistribute it and/or
-|   modify it under the terms of the GNU Library General Public
+|   modify it under the terms of the GNU Lesser General Public
 |   License as published by the Free Software Foundation; either
-|   version 2 of the License, or (at your option) any later version.
-|
-|   If you compile this program with cyg tools this package falls
-|   under the GPL.  See COPYING.CYGNUS for details.
+|   version 2.1 of the License, or (at your option) any later version.
 |
 |   This library is distributed in the hope that it will be useful,
 |   but WITHOUT ANY WARRANTY; without even the implied warranty of
 |   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-|   Library General Public License for more details.
+|   Lesser General Public License for more details.
 |
-|   You should have received a copy of the GNU Library General Public
+|   An executable that contains no derivative of any portion of RXTX, but
+|   is designed to work with RXTX by being dynamically linked with it,
+|   is considered a "work that uses the Library" subject to the terms and
+|   conditions of the GNU Lesser General Public License.
+|
+|   The following has been added to the RXTX License to remove
+|   any confusion about linking to RXTX.   We want to allow in part what
+|   section 5, paragraph 2 of the LGPL does not permit in the special
+|   case of linking over a controlled interface.  The intent is to add a
+|   Java Specification Request or standards body defined interface in the
+|   future as another exception but one is not currently available.
+|
+|   http://www.fsf.org/licenses/gpl-faq.html#LinkingOverControlledInterface
+|
+|   As a special exception, the copyright holders of RXTX give you
+|   permission to link RXTX with independent modules that communicate with
+|   RXTX solely through the Sun Microsytems CommAPI interface version 2,
+|   regardless of the license terms of these independent modules, and to copy
+|   and distribute the resulting combined work under terms of your choice,
+|   provided that every copy of the combined work is accompanied by a complete
+|   copy of the source code of RXTX (the version of RXTX used to produce the
+|   combined work), being distributed under the terms of the GNU Lesser General
+|   Public License plus this exception.  An independent module is a
+|   module which is not derived from or based on RXTX.
+|
+|   Note that people who make modified versions of RXTX are not obligated
+|   to grant this special exception for their modified versions; it is
+|   their choice whether to do so.  The GNU Lesser General Public License
+|   gives permission to release a modified version without this exception; this
+|   exception also makes it possible to release a modified version which
+|   carries forward this exception.
+|
+|   You should have received a copy of the GNU Lesser General Public
 |   License along with this library; if not, write to the Free
 |   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+|   All trademarks belong to their respective owners.
 --------------------------------------------------------------------------*/
-
 #ifndef _WIN32S_H_
 #define _WIN32S_H_
 #include <windows.h>
@@ -32,6 +67,7 @@
 #define ENTER(x)
 #define LEAVE(x)
 #endif /* TRACE */
+#if defined(_MSC_VER)
 #define YACK() \
 { \
 	char *allocTextBuf, message[80]; \
@@ -46,11 +82,33 @@
 		(LPSTR)&allocTextBuf, \
 		16, \
 		NULL ); \
-	sprintf( message, "Error 0x%x at %s(%d): %s\n", errorCode, __FILE__, __LINE__, allocTextBuf); \
+	_snprintf_s( message, 80, 80, "Error 0x%x at %s(%d): %s\n", errorCode, __FILE__, __LINE__, allocTextBuf); \
 	report_error( message ); \
 	LocalFree(allocTextBuf); \
+	Sleep(1); \
 }
+#else
 
+#define YACK() \
+{ \
+	char *allocTextBuf, message[80]; \
+	unsigned long nChars; \
+	unsigned int errorCode = GetLastError(); \
+	nChars = FormatMessage ( \
+		FORMAT_MESSAGE_ALLOCATE_BUFFER | \
+		FORMAT_MESSAGE_FROM_SYSTEM, \
+		NULL, \
+		errorCode, \
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), \
+		(LPSTR)&allocTextBuf, \
+		16, \
+		NULL ); \
+	snprintf( message, 80, "Error 0x%x at %s(%d): %s\n", errorCode, __FILE__, __LINE__, allocTextBuf); \
+	report_error( message ); \
+	LocalFree(allocTextBuf); \
+	Sleep(1); \
+}
+#endif
 typedef unsigned char   cc_t;
 typedef unsigned int    speed_t;
 typedef unsigned int    tcflag_t;
@@ -279,7 +337,7 @@ void termiosSetParityError( int, char );
 #define XTABS	01000000 /* Hmm.. Linux/i386 considers this part of TABDLY.. */
 
 /* c_cflag bit meaning */
-# define CBAUD	0010017
+#define  CBAUD  0030017
 #define  B0	0000000		/* hang up */
 #define  B50	0000001
 #define  B75	0000002
@@ -312,13 +370,16 @@ void termiosSetParityError( int, char );
 #define  B3500000 0010016
 #define  B4000000 0010017
 
-/* glue for unsupported linux speeds see also SerialImp.h */
-/* hosed */
+/*
+	glue for unsupported linux speeds see also SerialImp.h
+	custom baud rates around 8192-9000 will not work because
+	of these.
+*/
 
-#define B14400		1010001
-#define B28800		1010002
-#define B128000		1010003
-#define B256000		1010004
+#define B14400		0020001
+#define B28800		0020002
+#define B128000		0020003
+#define B256000		0020004
 
 #define EXTA B19200
 #define EXTB B38400
@@ -356,8 +417,10 @@ void termiosSetParityError( int, char );
 
 /* glue for unsupported windows speeds */
 
-#define CBR_230400	230400
 #define CBR_28800	28800
+#define CBR_128000	128000
+#define CBR_230400	230400
+#define CBR_256000	256000
 #define CBR_460800	460800
 #define CBR_500000	500000
 #define CBR_576000	576000
