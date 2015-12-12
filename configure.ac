@@ -32,6 +32,11 @@ AC_FUNC_SELECT_ARGTYPES
 AC_TYPE_SIGNAL
 AC_FUNC_STAT
 AC_PROG_LIBTOOL
+AX_PROG_JAVAC
+AX_PROG_JAVAH
+AX_PROG_JAR
+AX_CHECK_JAVA_HOME
+
 # AC_CHECK_FUNCS([inet_ntoa memset socket])
 
 AC_CHECK_LIB([pthread], [pthread_create])
@@ -40,8 +45,8 @@ AM_INIT_AUTOMAKE([subdir-objects -Wall])
 
 AC_ARG_VAR([JDK_HOME], [root directory of Java Development Kit])
 if test -z "$JDK_HOME"; then
-   # default for Debian/Wheezy
-   JDK_HOME="/usr/lib/jvm/java-7-openjdk"
+   # assume as default JAVA_HOME
+   JDK_HOME=${JAVA_HOME}
 fi
 AC_MSG_NOTICE([JDK_HOME=${JDK_HOME}])
 

@@ -1,0 +1,49 @@
+#!/bin/sh
+# creates symlink for given libtool library control file
+# invocation: create_symlinks <source-library-dir> <libtoolize-libray-file> <javar-archive-library-file>
+
+LIBDIR=$1
+LTLIBFILE=$2
+JARFILE=$3
+
+
+
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+        # Linux
+        echo "chreate symlinks to RXTXcomm libraries for Linux"
+        TARGETDIR=/usr/share/java
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+        # Mac OSX
+        echo "chreate symlinks to RXTXcomm libraries for Mac OS X"
+        TARGETDIR=/Library/Java/Extensions
+elif [[ "$OSTYPE" == "cygwin" ]]; then
+        # POSIX compatibility layer and Linux environment emulation for Windows
+        echo "currently no symlinks created for cygwin, do this manually"
+        exit
+elif [[ "$OSTYPE" == "msys" ]]; then
+        # Lightweight shell and GNU utilities compiled for Windows (part of MinGW)
+        echo "currently no symlinks created for msys, do this manually"
+        exit
+elif [[ "$OSTYPE" == "win32" ]]; then
+        # I'm not sure this can happen.
+        echo "currently no symlinks created for Windows32, do this manually"
+        exit
+elif [[ "$OSTYPE" == "win64" ]]; then
+        # I'm not sure this can happen.
+        echo "currently no symlinks created for Windows64, do this manually"
+        exit
+elif [[ "$OSTYPE" == "freebsd"* ]]; then
+        TARGETDIR=/usr/share/java
+else
+        # Unknown.
+        echo "no symlinks created for unknown OS, do this manually"
+        exit
+fi
+
+
+source $LTLIBFILE
+for l in $library_names
+do
+	ln -f -s $LIBDIR/$l $TARGETDIR
+done
+ln -f -s $LIBDIR/$JARFILE $TARGETDIR

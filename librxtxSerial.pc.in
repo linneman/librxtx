@@ -6,6 +6,6 @@ includedir=@includedir@
 Name: librxtxSerial
 URL: http://rxtx.qbang.org
 Description: Serial Communication for Java
-Version: @pkgconfig_VERSION@
+Version: @PACKAGE_VERSION@
 Libs: -L${libdir} -lrxtxSerial
 Cflags: -I${includedir}
