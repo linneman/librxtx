@@ -1,20 +1,59 @@
 /*-------------------------------------------------------------------------
-|   rxtx is a native interface to serial ports in java.
-|   Copyright 1997-2004 by Trent Jarvi taj@www.linux.org.uk
+|   RXTX License v 2.1 - LGPL v 2.1 + Linking Over Controlled Interface.
+|   RXTX is a native interface to serial ports in java.
+|   Copyright 1997-2009 by Trent Jarvi tjarvi@qbang.org and others who
+|   actually wrote it.  See individual source files for more information.
+|
+|   A copy of the LGPL v 2.1 may be found at
+|   http://www.gnu.org/licenses/lgpl.txt on March 4th 2007.  A copy is
+|   here for your convenience.
 |
 |   This library is free software; you can redistribute it and/or
-|   modify it under the terms of the GNU Library General Public
+|   modify it under the terms of the GNU Lesser General Public
 |   License as published by the Free Software Foundation; either
-|   version 2 of the License, or (at your option) any later version.
+|   version 2.1 of the License, or (at your option) any later version.
 |
 |   This library is distributed in the hope that it will be useful,
 |   but WITHOUT ANY WARRANTY; without even the implied warranty of
 |   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-|   Library General Public License for more details.
+|   Lesser General Public License for more details.
 |
-|   You should have received a copy of the GNU Library General Public
+|   An executable that contains no derivative of any portion of RXTX, but
+|   is designed to work with RXTX by being dynamically linked with it,
+|   is considered a "work that uses the Library" subject to the terms and
+|   conditions of the GNU Lesser General Public License.
+|
+|   The following has been added to the RXTX License to remove
+|   any confusion about linking to RXTX.   We want to allow in part what
+|   section 5, paragraph 2 of the LGPL does not permit in the special
+|   case of linking over a controlled interface.  The intent is to add a
+|   Java Specification Request or standards body defined interface in the 
+|   future as another exception but one is not currently available.
+|
+|   http://www.fsf.org/licenses/gpl-faq.html#LinkingOverControlledInterface
+|
+|   As a special exception, the copyright holders of RXTX give you
+|   permission to link RXTX with independent modules that communicate with
+|   RXTX solely through the Sun Microsytems CommAPI interface version 2,
+|   regardless of the license terms of these independent modules, and to copy
+|   and distribute the resulting combined work under terms of your choice,
+|   provided that every copy of the combined work is accompanied by a complete
+|   copy of the source code of RXTX (the version of RXTX used to produce the
+|   combined work), being distributed under the terms of the GNU Lesser General
+|   Public License plus this exception.  An independent module is a
+|   module which is not derived from or based on RXTX.
+|
+|   Note that people who make modified versions of RXTX are not obligated
+|   to grant this special exception for their modified versions; it is
+|   their choice whether to do so.  The GNU Lesser General Public License
+|   gives permission to release a modified version without this exception; this
+|   exception also makes it possible to release a modified version which
+|   carries forward this exception.
+|
+|   You should have received a copy of the GNU Lesser General Public
 |   License along with this library; if not, write to the Free
 |   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+|   All trademarks belong to their respective owners.
 --------------------------------------------------------------------------*/
 /* gnu.io.SerialPort constants */
 #ifdef WIN32
@@ -100,6 +139,7 @@ struct event_info_struct
 #if !defined(TIOCSERGETLSR) && !defined(WIN32)
 	int writing;
 	int output_buffer_empty_flag;
+	pthread_t drain_tid;
 #endif /* !TIOCSERGETLSR !WIN32 */
 #	if defined(TIOCGICOUNT)
 	struct serial_icounter_struct osis;
@@ -108,6 +148,14 @@ struct event_info_struct
 
 /*  Ports known on the OS */
 #if defined(__linux__)
+/*
+	This is a small hack to get mark and space parity working on older systems
+	https://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=147533
+*/
+#	if !defined(CMSPAR)
+#		define CMSPAR 010000000000
+#	endif /* CMSPAR */
+#	
 #	define DEVICEDIR "/dev/"
 #	define LOCKDIR "/var/lock"
 #	define LOCKFILEPREFIX "LCK.."
@@ -135,7 +183,8 @@ struct event_info_struct
 /*#	define LOCKDIR "/var/spool/uucp"*/
 #	define LOCKDIR "/var/lock"
 #	define LOCKFILEPREFIX "LK."
-#	define UUCP
+/*#	define UUCP*/
+#	define OPEN_EXCL
 #endif /* __APPLE__ */
 #if defined(__NetBSD__)
 #	define DEVICEDIR "/dev/"
@@ -413,6 +462,7 @@ int translate_parity( JNIEnv *, tcflag_t *, jint );
 void system_wait();
 void finalize_event_info_struct( struct event_info_struct * );
 int read_byte_array( JNIEnv *, jobject *, int, unsigned char *, int, int );
+long get_java_var_long( JNIEnv *, jobject, char *, char * );
 size_t get_java_var( JNIEnv *, jobject, char *, char * );
 jboolean is_interrupted( struct event_info_struct * );
 int send_event(struct event_info_struct *, jint, int );
