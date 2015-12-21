@@ -4869,6 +4869,15 @@ JNIEXPORT void JNICALL RXTXPort(interruptEventLoop)(JNIEnv *env,
 
 	In rxtx TIOCSERGETLSR is defined for win32 and Linux
 	*/
+#if defined(__APPLE__)
+  /* good bye tcdrain, and thanks for all the fish */
+  report("interruptEventLoop: canceling blocked drain thread\n");
+  pthread_cancel(index->drain_tid);
+  index->closing = 1;
+  /* Continuing on OS X causes an invalid memory access. */
+  return;
+#endif
+
 #ifdef TIOCSERGETLSR
 	index->closing=1;
 #endif /* TIOCSERGETLSR */
