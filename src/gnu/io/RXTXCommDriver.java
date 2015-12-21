@@ -382,6 +382,30 @@ public class RXTXCommDriver implements CommDriver
 		}
 	}
 
+  /*
+   * Finds the "gnu.io.rxtx.properties" file in java extension dir
+   * (legacy support).
+   * The file gnu.io.rxtx.properties may reside in the java extension dir,
+   * or it can be anywhere in the classpath.
+   *
+   * @return the properties file object if found or null if no property file
+   * found in any extension directory
+   */
+  private File findPropertyFile() {
+    final String[] extDirs = System.getProperty("java.ext.dirs").split(":");
+    final String separator = System.getProperty("file.separator");
+    for (final String extDir : extDirs) {
+      final String extFile =
+        extDir + separator + "gnu.io.rxtx.properties";
+      final File file = new File(extFile);
+      if (file.exists()) {
+        return file;
+      }
+    }
+    return null;
+  }
+
+
    /*
     * Register ports specified in the file "gnu.io.rxtx.properties"
     * Key system properties:
@@ -406,15 +430,20 @@ public class RXTXCommDriver implements CommDriver
 
 		try
 		    {
+         File propFile = findPropertyFile();
+         if( propFile == null )
+           throw( new FileNotFoundException("property file gnu.io.rxtx.properties not found") );
 
-		     String ext_dir=System.getProperty("java.ext.dirs")+System.getProperty("file.separator");
-		     FileInputStream rxtx_prop=new FileInputStream(ext_dir+"gnu.io.rxtx.properties");
+         FileInputStream rxtx_prop = new FileInputStream( propFile );
 		     Properties p=new Properties();
 		     p.load(rxtx_prop);
 		     System.setProperties(p);
 		     for (Iterator it = p.keySet().iterator(); it.hasNext();) {
 		          String key = (String) it.next();
 		          System.setProperty(key, p.getProperty(key));
+              if(debug){
+                System.out.println("setProperty("+key+", "+p.getProperty(key)+");");
+              }
 		     }
 		    }catch(Exception e){
 			if (debug){
