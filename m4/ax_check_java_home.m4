@@ -44,6 +44,7 @@
 #   exception to the GPL to apply to your modified version as well.
 
 #serial 6
+AX_PROG_JAVAC
 
 AU_ALIAS([AC_CHECK_JAVA_HOME], [AX_CHECK_JAVA_HOME])
 
@@ -53,6 +54,20 @@ AC_DEFUN([AX_CHECK_JAVA_HOME],
 # is found.
 while true
 do
+
+  # The most reliable way to discover JAVA_HOME seems to be
+  # to get the property from the JVM itself. For this reason
+  # we generate and compile a small Java test application
+  # which prints the java.home property for later usage.
+  cat > PrintJdkHome.java <<EOL
+    public class PrintJdkHome {
+      public static void main( String args[[]] ) {
+        System.out.println(System.getProperty("java.home"));
+      }
+    }
+EOL
+  $JAVAC PrintJdkHome.java
+
   # If the user defined JAVA_HOME, don't touch it.
   test "${JAVA_HOME+set}" = set && break
 
@@ -62,18 +77,15 @@ do
   JAVA_HOME=`/usr/libexec/java_home 2>/dev/null`
   test x"$JAVA_HOME" != x && break
 
-  # See if we can find the java executable, and compute from there.
-  TRY_JAVA_HOME=`ls -dr /usr/java/* 2> /dev/null | head -n 1`
-  if test x$TRY_JAVA_HOME != x; then
-    PATH=$PATH:$TRY_JAVA_HOME/bin
-  fi
+  # derive JAVA_HOME from JVM's property
   AC_PATH_PROG([JAVA_PATH_NAME], [java])
-  if test "x$JAVA_PATH_NAME" != x; then
-    JAVA_HOME=`echo $JAVA_PATH_NAME | sed "s/\(.*\)[[/]]bin[[/]]java.*/\1/"`
-    break
+  JAVA_HOME=`$JAVA PrintJdkHome`
+  if [[ "$?" = "0" ]] ; then
+     JAVA_HOME="$JAVA_HOME/../"
+     break
   fi
 
-  AC_MSG_NOTICE([Could not compute JAVA_HOME])
+  AC_MSG_NOTICE([Could not compute JAVA_HOME, set and export it before invoking configure!])
   break
 done
 AC_MSG_RESULT([$JAVA_HOME])

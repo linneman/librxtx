@@ -11,7 +11,7 @@ JARFILE=$3
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
         # Linux
         echo "chreate symlinks to RXTXcomm libraries for Linux"
-        TARGETDIR=/usr/share/java
+        TARGETDIR="$(java PrintJdkHome)/lib/ext"
 elif [[ "$OSTYPE" == "darwin"* ]]; then
         # Mac OSX
         echo "chreate symlinks to RXTXcomm libraries for Mac OS X"
@@ -33,7 +33,7 @@ elif [[ "$OSTYPE" == "win64" ]]; then
         echo "currently no symlinks created for Windows64, do this manually"
         exit
 elif [[ "$OSTYPE" == "freebsd"* ]]; then
-        TARGETDIR=/usr/share/java
+        TARGETDIR="$(java PrintJdkHome)/lib/ext"
 else
         # Unknown.
         echo "no symlinks created for unknown OS, do this manually"
