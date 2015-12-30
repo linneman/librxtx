@@ -30,7 +30,7 @@ BUILT_SOURCES = $(CLASSES)
 CLEANFILES= $(BUILT_SOURCES) \
 	$(TOP)/*.class $(TOP)/$(CLASSDEST)/*.class $(TOP)/$(JARTARGET)
 
-EXTRA_DIST=$(javafiles) $(wildcard $(SPATH)/*.c) $(wildcard $(SPATH)/*.h)
+EXTRA_DIST=$(javafiles) $(wildcard $(SPATH)/*.c) $(wildcard $(SPATH)/*.h) create_symlinks
 # installed header files
 # include_HEADERS=
 
